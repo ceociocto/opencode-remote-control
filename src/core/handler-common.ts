@@ -1,9 +1,9 @@
 // Shared handler logic for OpenCode Remote Control
 
-import type { Session, MessageContext, ApprovalRequest, FileChange } from './types.ts'
-import { getOrCreateSession } from './session.ts'
-import { createApprovalRequest, waitForApproval, formatApprovalMessage } from './approval.ts'
-import { TEMPLATES, splitMessage } from './notifications.ts'
+import type { Session, MessageContext, ApprovalRequest, FileChange } from './types.js'
+import { getOrCreateSession } from './session.js'
+import { createApprovalRequest, waitForApproval, formatApprovalMessage } from './approval.js'
+import { TEMPLATES, splitMessage } from './notifications.js'
 
 export interface HandlerDeps {
   sendMessage: (threadId: string, text: string) => Promise<void>
@@ -169,4 +169,4 @@ export function createHandler(deps: HandlerDeps) {
 }
 
 // Re-export emoji for use in handlers
-import { EMOJI } from './types.ts'
+import { EMOJI } from './types.js'

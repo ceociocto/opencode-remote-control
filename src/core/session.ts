@@ -1,11 +1,11 @@
 // Session management for OpenCode Remote Control
 
-import type { Session, Config } from './types.ts'
-import { loadConfig } from './types.ts'
+import type { Session, Config } from './types.js'
+import { loadConfig } from './types.js'
 
 const sessions = new Map<string, Session>()
 
-let cleanupTimer: Timer | null = null
+let cleanupTimer: ReturnType<typeof setInterval> | null = null
 
 export function initSessionManager(config: Config = loadConfig()) {
   // Start cleanup timer

@@ -1,10 +1,10 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 // OpenCode Remote Control - CLI entry point
 
-import { existsSync, writeFileSync, readFileSync } from 'fs'
+import { existsSync, writeFileSync, readFileSync, mkdirSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
-import { startBot } from './telegram/bot.ts'
+import { startBot } from './telegram/bot.js'
 
 const CONFIG_DIR = join(homedir(), '.opencode-remote')
 const CONFIG_FILE = join(CONFIG_DIR, '.env')
@@ -47,10 +47,9 @@ async function promptToken(): Promise<string> {
 
   // Read from stdin
   const token = await new Promise<string>((resolve) => {
-    let input = ''
     process.stdin.setEncoding('utf8')
     process.stdin.once('data', (chunk) => {
-      resolve(chunk.trim())
+      resolve(chunk.toString().trim())
     })
   })
 
@@ -88,7 +87,6 @@ async function getConfig(): Promise<string | null> {
 async function saveConfig(token: string) {
   // Create config directory if needed
   if (!existsSync(CONFIG_DIR)) {
-    const { mkdirSync } = await import('fs')
     mkdirSync(CONFIG_DIR, { recursive: true })
   }
 

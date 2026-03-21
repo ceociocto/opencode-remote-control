@@ -21,6 +21,3 @@ Thumbs.db
 
 # Test coverage
 coverage/
-
-# GStack
-.gstack/

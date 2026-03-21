@@ -1,6 +1,6 @@
 // OpenCode Remote Control - Main entry point
 
-import { startBot } from './telegram/bot.ts'
+import { startBot } from './telegram/bot.js'
 
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 console.log('  OpenCode Remote Control')

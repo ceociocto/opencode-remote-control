@@ -83,15 +83,15 @@ export async function sendMessage(
 
     if (result.error) {
       console.error('Failed to send message:', result.error)
-      return `❌ Error: ${result.error.message || 'Failed to send message'}`
+      return `❌ Error: ${(result.error as any).message || 'Failed to send message'}`
     }
 
     const response = result.data
 
     // Build response text from parts
     const responseText =
-      response.info?.content ||
-      response.parts
+      (response as any).info?.content ||
+      (response as any).parts
         ?.filter((p: any) => p.type === 'text')
         .map((p: any) => p.text)
         .join('\n') ||

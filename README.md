@@ -4,26 +4,26 @@ Control OpenCode from anywhere via Telegram.
 
 ## Installation
 
-### Option 1: Install via npm (Recommended)
-
 ```bash
-# Install Bun if not installed
-curl -fsSL https://bun.sh/install | bash
-
-# Install globally
+# Install globally with npm, pnpm, or bun
+npm install -g opencode-remote-control
+# or
+pnpm install -g opencode-remote-control
+# or
 bun install -g opencode-remote-control
 
 # Run (will prompt for token on first run)
 opencode-remote
 ```
 
-### Option 2: Install from source
+### Install from source
 
 ```bash
 git clone https://github.com/ceociocto/opencode-remote-control.git
 cd opencode-remote-control
 bun install
-bun run dev
+bun run build
+node dist/cli.js
 ```
 
 ## Setup
@@ -85,7 +85,7 @@ Bot 使用 **Polling 模式** 主动从 Telegram 服务器拉取消息，无需�
 
 ## Requirements
 
-- [Bun](https://bun.sh) runtime
+- Node.js >= 18.0.0
 - [OpenCode](https://github.com/opencode-ai/opencode) installed
 - Telegram account
 

@@ -1,6 +1,6 @@
 // Notification formatting for OpenCode Remote Control
 
-import { EMOJI } from './types.ts'
+import { EMOJI } from './types.js'
 
 export interface NotificationOptions {
   type: 'success' | 'error' | 'loading' | 'input_needed' | 'expired' | 'started'

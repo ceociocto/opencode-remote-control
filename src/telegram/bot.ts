@@ -1,17 +1,17 @@
 // Telegram bot implementation for OpenCode Remote Control
 
 import { Bot, GrammyError } from 'grammy'
-import { loadConfig, EMOJI } from '../core/types.ts'
-import { initSessionManager, getOrCreateSession, updateSession } from '../core/session.ts'
-import { formatApprovalMessage } from '../core/approval.ts'
-import { TEMPLATES, splitMessage } from '../core/notifications.ts'
+import { loadConfig, EMOJI } from '../core/types.js'
+import { initSessionManager, getOrCreateSession, updateSession } from '../core/session.js'
+import { formatApprovalMessage } from '../core/approval.js'
+import { TEMPLATES, splitMessage } from '../core/notifications.js'
 import {
   initOpenCode,
   createSession,
   sendMessage,
   checkConnection,
   type OpenCodeSession
-} from '../opencode/client.ts'
+} from '../opencode/client.js'
 
 const config = loadConfig()
 
@@ -198,11 +198,12 @@ Cannot connect to OpenCode server.
   if (!openCodeSession) {
     await ctx.reply('⏳ Creating session...')
 
-    openCodeSession = await createSession(threadId, `Telegram thread ${threadId}`)
-    if (!openCodeSession) {
+    const newSession = await createSession(threadId, `Telegram thread ${threadId}`)
+    if (!newSession) {
       await ctx.reply('❌ Failed to create OpenCode session')
       return
     }
+    openCodeSession = newSession
 
     openCodeSessions.set(threadId, openCodeSession)
     session.opencodeSessionId = openCodeSession.sessionId

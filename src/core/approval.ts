@@ -1,7 +1,7 @@
 // Approval workflow for OpenCode Remote Control
 
-import type { Session, ApprovalRequest, FileChange } from './types.ts'
-import { loadConfig } from './types.ts'
+import type { Session, ApprovalRequest, FileChange } from './types.js'
+import { loadConfig } from './types.js'
 
 const approvalCallbacks = new Map<string, {
   resolve: (approved: boolean) => void
