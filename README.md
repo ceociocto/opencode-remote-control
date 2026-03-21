@@ -1,122 +1,93 @@
 # OpenCode Remote Control
 
-Control OpenCode from anywhere via Telegram or Feishu.
+Control OpenCode from anywhere via Telegram.
 
-## Features
+## Installation
 
-- **Chat with OpenCode** — Send prompts from Telegram, get responses streamed back
-- **Thread-based sessions** — Each thread maintains its own context
-- **Approval workflow** — Review diffs and approve/reject file edits from chat
-- **Push notifications** — Get notified when tasks complete or fail
-
-## Quick Start
-
-### 1. Create a Telegram Bot
-
-1. Open Telegram and search for @BotFather
-2. Send `/newbot` and follow the instructions
-3. Copy the bot token
-
-### 2. Install Dependencies
+### Option 1: Install via npm (Recommended)
 
 ```bash
+# Install Bun if not installed
+curl -fsSL https://bun.sh/install | bash
+
+# Install globally
+bun install -g opencode-remote-control
+
+# Run (will prompt for token on first run)
+opencode-remote
+```
+
+### Option 2: Install from source
+
+```bash
+git clone https://github.com/ceociocto/opencode-remote-control.git
+cd opencode-remote-control
 bun install
-```
-
-### 3. Configure Environment
-
-```bash
-cp .env.example .env
-# Edit .env and add your TELEGRAM_BOT_TOKEN
-```
-
-### 4. Start the Bot
-
-```bash
 bun run dev
 ```
 
-### 5. Set Up Cloudflare Tunnel (for webhooks)
+## Setup
 
-```bash
-cloudflared tunnel --url http://localhost:3000
-# Copy the tunnel URL to TUNNEL_URL in .env
-```
+On first run, you'll be prompted for a Telegram bot token:
+
+1. Open Telegram, search **@BotFather**
+2. Send `/newbot` and follow instructions
+3. Paste the token when prompted
+
+Token is saved to `~/.opencode-remote/.env`
 
 ## Commands
 
+**CLI:**
+```
+opencode-remote         # Start the bot
+opencode-remote config  # Reconfigure token
+opencode-remote help    # Show help
+```
+
+**Telegram:**
 | Command | Description |
 |--------|-------------|
-| `/start` | Start the bot, show welcome message |
-| `/help` | Show all available commands |
-| `/status` | Check connection and session status |
-| `/approve` | Approve pending file changes |
-| `/reject` | Reject pending file changes |
-| `/diff` | View the diff of pending changes |
-| `/files` | List all changed files |
-| `/reset` | Reset the current session |
+| `/start` | Start the bot |
+| `/help` | Show all commands |
+| `/status` | Check connection status |
+| `/approve` | Approve pending changes |
+| `/reject` | Reject pending changes |
+| `/diff` | View pending diff |
+| `/files` | List changed files |
+| `/reset` | Reset session |
 
-## Architecture
-
-```
-┌─────────────────┐     ┌──────────────────┐
-│  Telegram/Feishu│     │   Cloudflare     │
-│     (Cloud)     │────▶│     Tunnel       │
-└─────────────────┘     └────────┬─────────┘
-                                 │
-                                 ▼
-┌────────────────────────────────────────────┐
-│           Bot Service (Local)               │
-│  ┌─────────────┐    ┌──────────────────┐   │
-│  │ Telegram    │    │ Feishu           │   │
-│  │ Handler     │    │ Handler          │   │
-│  └──────┬──────┘    └────────┬─────────┘   │
-│         │                    │             │
-│         ▼                    ▼             │
-│  ┌─────────────────────────────────────┐   │
-│  │         Session Manager             │   │
-│  └──────────────────┬──────────────────┘   │
-│                     │                       │
-│                     ▼                       │
-│  ┌─────────────────────────────────────┐   │
-│  │         OpenCode SDK                │   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-```
-
-## Project Structure
+## How It Works
 
 ```
-opencode-remote-control/
-├── src/
-│   ├── index.ts              # Entry point
-│   ├── telegram/
-│   │   └── bot.ts            # Telegram bot implementation
-│   ├── core/
-│   │   ├── types.ts          # Types and config
-│   │   ├── session.ts        # Session management
-│   │   ├── approval.ts       # Approval workflow
-│   │   ├── notifications.ts  # Message formatting
-│   │   └── handler-common.ts # Shared handler logic
-│   └── opencode/
-│       └── client.ts         # OpenCode SDK integration (TODO)
-├── tests/
-│   ├── mocks/
-│   │   └── opencode-sdk.ts  # Mock SDK for testing
-│   ├── session.test.ts
-│   └── approval.test.ts
-├── .env.example
-├── package.json
-└── README.md
+┌─────────────────┐                    ┌──────────────────┐
+│  Telegram App   │                    │  Telegram Server │
+│   (手机)        │◀────── 消息 ──────▶│     (云端)       │
+└─────────────────┘                    └────────┬─────────┘
+                                                │
+                     ┌──────── Polling ─────────┘
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│              Bot Service (本地电脑)                      │
+│  ┌─────────────┐      ┌──────────────┐                  │
+│  │ Telegram    │      │   Session    │                  │
+│  │ Bot         │─────▶│   Manager    │                  │
+│  └─────────────┘      └──────┬───────┘                  │
+│                              │                          │
+│                              ▼                          │
+│                    ┌──────────────────┐                 │
+│                    │   OpenCode SDK   │                 │
+│                    └──────────────────┘                 │
+└─────────────────────────────────────────────────────────┘
 ```
 
-## Status
+Bot 使用 **Polling 模式** 主动从 Telegram 服务器拉取消息，无需配置 tunnel 或公网地址。
 
-- [x] Telegram bot MVP working
-- [x] Session management
-- [x] Approval workflow
-- [ ] OpenCode SDK integration (TODO - needs research)
-- [ ] Feishu support (Phase 2)
+## Requirements
+
+- [Bun](https://bun.sh) runtime
+- [OpenCode](https://github.com/opencode-ai/opencode) installed
+- Telegram account
 
 ## License
 

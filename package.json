@@ -1,8 +1,11 @@
 {
   "name": "opencode-remote-control",
-  "version": "0.1.0.0",
-  "description": "Remote control for OpenCode via Telegram and Feishu",
+  "version": "0.1.0",
+  "description": "Control OpenCode from anywhere via Telegram",
   "type": "module",
+  "bin": {
+    "opencode-remote": "./src/cli.ts"
+  },
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
@@ -16,5 +19,21 @@
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.6.0"
-  }
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ceociocto/opencode-remote-control.git"
+  },
+  "keywords": [
+    "opencode",
+    "telegram",
+    "remote-control",
+    "ai",
+    "coding"
+  ],
+  "author": "",
+  "license": "MIT"
 }
