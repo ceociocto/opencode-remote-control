@@ -1,6 +1,6 @@
 {
   "name": "opencode-remote-control",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Control OpenCode from anywhere via Telegram",
   "type": "module",
   "bin": {
