@@ -1,0 +1,54 @@
+name: Publish to npm
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Check version changed
+        id: version
+        run: |
+          PREV_VERSION=$(git show HEAD~1:package.json | jq -r '.version')
+          CURR_VERSION=$(jq -r '.version < package.json')
+          if [ "$PREV_VERSION" != "$CURR_VERSION" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$CURR_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install dependencies
+        if: steps.version.outputs.changed == 'true'
+        run: npm ci
+
+      - name: Build
+        if: steps.version.outputs.changed == 'true'
+        run: npm run build
+
+      - name: Publish to npm
+        if: steps.version.outputs.changed == 'true'
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Summary
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          echo "Published v${{ steps.version.outputs.version }} to npm" >> $GITHUB_STEP_SUMMARY
