@@ -10,6 +10,7 @@
     "test:watch": "bun test --watch"
   },
   "dependencies": {
+    "@opencode-ai/sdk": "^1.2.27",
     "grammy": "^1.30.0"
   },
   "devDependencies": {

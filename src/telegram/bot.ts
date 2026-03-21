@@ -1,11 +1,17 @@
 // Telegram bot implementation for OpenCode Remote Control
 
-import { Bot, Context, GrammyError } from 'grammy'
-import { ParseMode } from 'grammy/parse-mode'
-import type { Update } from 'grammy/types'
+import { Bot, GrammyError } from 'grammy'
 import { loadConfig, EMOJI } from '../core/types.ts'
-import { initSessionManager, getOrCreateSession } from '../core/session.ts'
-import { createHandler } from '../core/handler-common.ts'
+import { initSessionManager, getOrCreateSession, updateSession } from '../core/session.ts'
+import { formatApprovalMessage } from '../core/approval.ts'
+import { TEMPLATES, splitMessage } from '../core/notifications.ts'
+import {
+  initOpenCode,
+  createSession,
+  sendMessage,
+  checkConnection,
+  type OpenCodeSession
+} from '../opencode/client.ts'
 
 const config = loadConfig()
 
@@ -15,25 +21,11 @@ const bot = new Bot(config.telegramBotToken)
 // Initialize session manager
 initSessionManager(config)
 
-// Create shared handler
-const handler = createHandler({
-  sendMessage: async (threadId: string, text: string) => {
-    const [chatId, messageId] = threadId.split(':')
-    await bot.api.sendMessage(Number(chatId), text, {
-      parse_mode: 'HTML',
-      reply_parameters: messageId ? { message_id: Number(messageId) } : undefined
-    })
-  },
-
-  sendTyping: async (threadId: string) => {
-    const [chatId] = threadId.split(':')
-    await bot.api.sendChatAction(Number(chatId), 'typing')
-  }
-})
+// Store OpenCode sessions by thread ID
+const openCodeSessions = new Map<string, OpenCodeSession>()
 
 // Start command
 bot.command('start', async (ctx) => {
-  const threadId = `${ctx.chat!.id}:${ctx.message?.message_thread_id || ctx.message?.message_id}`
   await ctx.reply(`🚀 OpenCode Remote Control ready
 
 💬 Send me a prompt to start coding
@@ -58,19 +50,35 @@ bot.command('help', async (ctx) => {
 
 // Status command
 bot.command('status', async (ctx) => {
-  const threadId = `${ctx.chat!.id}:${ctx.message?.message_thread_id || ctx.message?.message_id}`
+  const threadId = getThreadId(ctx)
   const session = getOrCreateSession(threadId, 'telegram')
+  const openCodeSession = openCodeSessions.get(threadId)
+
+  // Check OpenCode connection
+  const connected = await checkConnection()
+
+  if (!connected) {
+    await ctx.reply(`❌ OpenCode is offline
+
+Cannot connect to OpenCode server.
+
+🔄 /retry — check again`)
+    return
+  }
+
+  const idleSeconds = Math.round((Date.now() - session.lastActivity) / 1000)
+  const pendingCount = session.pendingApprovals.length
 
   await ctx.reply(`✅ Connected
 
-💬 Session: ${session.id.slice(0, 8)}
-⏰ Idle: ${Math.round((Date.now() - session.lastActivity) / 1000)}s
-📝 Pending approvals: ${session.pendingApprovals.length}`)
+💬 Session: ${openCodeSession?.sessionId?.slice(0, 8) || 'none'}
+⏰ Idle: ${idleSeconds}s
+📝 Pending approvals: ${pendingCount}`)
 })
 
 // Approve command
 bot.command('approve', async (ctx) => {
-  const threadId = `${ctx.chat!.id}:${ctx.message?.message_thread_id || ctx.message?.message_id}`
+  const threadId = getThreadId(ctx)
   const session = getOrCreateSession(threadId, 'telegram')
 
   if (session.pendingApprovals.length === 0) {
@@ -85,7 +93,7 @@ bot.command('approve', async (ctx) => {
 
 // Reject command
 bot.command('reject', async (ctx) => {
-  const threadId = `${ctx.chat!.id}:${ctx.message?.message_thread_id || ctx.message?.message_id}`
+  const threadId = getThreadId(ctx)
   const session = getOrCreateSession(threadId, 'telegram')
 
   if (session.pendingApprovals.length === 0) {
@@ -99,18 +107,21 @@ bot.command('reject', async (ctx) => {
 
 // Reset command
 bot.command('reset', async (ctx) => {
-  const threadId = `${ctx.chat!.id}:${ctx.message?.message_thread_id || ctx.message?.message_id}`
+  const threadId = getThreadId(ctx)
   const session = getOrCreateSession(threadId, 'telegram')
 
   session.pendingApprovals = []
   session.opencodeSessionId = undefined
+
+  // Clear OpenCode session
+  openCodeSessions.delete(threadId)
 
   await ctx.reply('🔄 Session reset. Start fresh!')
 })
 
 // Diff command
 bot.command('diff', async (ctx) => {
-  const threadId = `${ctx.chat!.id}:${ctx.message?.message_thread_id || ctx.message?.message_id}`
+  const threadId = getThreadId(ctx)
   const session = getOrCreateSession(threadId, 'telegram')
 
   const pending = session.pendingApprovals[0]
@@ -129,7 +140,7 @@ bot.command('diff', async (ctx) => {
 
 // Files command
 bot.command('files', async (ctx) => {
-  const threadId = `${ctx.chat!.id}:${ctx.message?.message_thread_id || ctx.message?.message_id}`
+  const threadId = getThreadId(ctx)
   const session = getOrCreateSession(threadId, 'telegram')
 
   const pending = session.pendingApprovals[0]
@@ -145,6 +156,17 @@ bot.command('files', async (ctx) => {
   await ctx.reply(`📄 Changed files:\n\n${fileList}`)
 })
 
+// Retry command
+bot.command('retry', async (ctx) => {
+  const connected = await checkConnection()
+
+  if (connected) {
+    await ctx.reply('✅ OpenCode is now online!')
+  } else {
+    await ctx.reply('❌ Still offline. Is OpenCode running?')
+  }
+})
+
 // Handle all other messages as prompts
 bot.on('message:text', async (ctx) => {
   const text = ctx.message.text
@@ -152,13 +174,7 @@ bot.on('message:text', async (ctx) => {
   // Skip if it's a command (already handled)
   if (text.startsWith('/')) return
 
-  const threadId = `${ctx.chat!.id}:${ctx.message.message_thread_id || ctx.message.message_id}`
-  const context = {
-    platform: 'telegram' as const,
-    threadId,
-    userId: String(ctx.from?.id),
-    messageId: String(ctx.message.message_id)
-  }
+  const threadId = getThreadId(ctx)
 
   // Send typing indicator
   await ctx.api.sendChatAction(ctx.chat!.id, 'typing')
@@ -166,25 +182,65 @@ bot.on('message:text', async (ctx) => {
   // Get or create session
   const session = getOrCreateSession(threadId, 'telegram')
 
-  // TODO: Send prompt to OpenCode SDK
-  // For now, simulate a response
-  await ctx.reply(`⏳ Thinking...`)
+  // Check OpenCode connection
+  const connected = await checkConnection()
+  if (!connected) {
+    await ctx.reply(`❌ OpenCode is offline
 
-  // Simulate work
-  setTimeout(async () => {
-    await ctx.reply(`✅ Done
+Cannot connect to OpenCode server.
 
-📄 1 file changed:
-• src/example.ts (+10, -3)
+🔄 /retry — check again`)
+    return
+  }
 
-💬 Reply to continue, or /files for details`)
-  }, 2000)
+  // Get or create OpenCode session
+  let openCodeSession = openCodeSessions.get(threadId)
+  if (!openCodeSession) {
+    await ctx.reply('⏳ Creating session...')
+
+    openCodeSession = await createSession(threadId, `Telegram thread ${threadId}`)
+    if (!openCodeSession) {
+      await ctx.reply('❌ Failed to create OpenCode session')
+      return
+    }
+
+    openCodeSessions.set(threadId, openCodeSession)
+    session.opencodeSessionId = openCodeSession.sessionId
+
+    // Share the session URL
+    if (openCodeSession.shareUrl) {
+      await ctx.reply(`🔗 Session: ${openCodeSession.shareUrl}`)
+    }
+  }
+
+  // Send prompt to OpenCode
+  await ctx.reply('⏳ Thinking...')
+
+  try {
+    const response = await sendMessage(openCodeSession, text)
+
+    // Split long messages
+    const messages = splitMessage(response)
+    for (const msg of messages) {
+      await ctx.reply(msg)
+    }
+  } catch (error) {
+    console.error('Error sending message:', error)
+    await ctx.reply(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
 })
 
 // Error handling
 bot.catch((err) => {
   console.error('Bot error:', err)
 })
+
+// Helper to get thread ID
+function getThreadId(ctx: any): string {
+  const chatId = ctx.chat?.id
+  const threadId = ctx.message?.message_thread_id || ctx.message?.message_id
+  return `${chatId}:${threadId}`
+}
 
 export { bot }
 
@@ -196,6 +252,16 @@ export async function startBot() {
     process.exit(1)
   }
 
-  console.log('🚀 Starting OpenCode Remote Control bot...')
+  // Initialize OpenCode
+  console.log('🔧 Initializing OpenCode...')
+  try {
+    await initOpenCode()
+    console.log('✅ OpenCode ready')
+  } catch (error) {
+    console.error('❌ Failed to initialize OpenCode:', error)
+    console.log('Make sure OpenCode is running')
+  }
+
+  console.log('🚀 Starting Telegram bot...')
   await bot.start()
 }
