@@ -13,19 +13,6 @@ npm install -g opencode-remote-control
 pnpm install -g opencode-remote-control
 # or
 bun install -g opencode-remote-control
-
-# Run (will prompt for token on first run)
-opencode-remote
-```
-
-### Install from Source
-
-```bash
-git clone https://github.com/ceociocto/opencode-remote-control.git
-cd opencode-remote-control
-bun install
-bun run build
-node dist/cli.js
 ```
 
 ## Setup
@@ -38,16 +25,26 @@ On first run, you'll be prompted for a Telegram bot token:
 
 Token is saved to `~/.opencode-remote/.env`
 
-## Commands
+## Usage
 
-**CLI:**
-```
+```bash
 opencode-remote         # Start the bot
 opencode-remote config  # Reconfigure token
 opencode-remote help    # Show help
 ```
 
-**Telegram:**
+## Install from Source
+
+```bash
+git clone https://github.com/ceociocto/opencode-remote-control.git
+cd opencode-remote-control
+bun install
+bun run build
+node dist/cli.js
+```
+
+## Telegram Commands
+
 | Command | Description |
 |--------|-------------|
 | `/start` | Start the bot |

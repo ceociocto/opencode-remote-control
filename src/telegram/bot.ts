@@ -1,7 +1,7 @@
 // Telegram bot implementation for OpenCode Remote Control
 
 import { Bot, GrammyError } from 'grammy'
-import { loadConfig, EMOJI } from '../core/types.js'
+import { loadConfig, EMOJI, type Config } from '../core/types.js'
 import { initSessionManager, getOrCreateSession, updateSession } from '../core/session.js'
 import { formatApprovalMessage } from '../core/approval.js'
 import { TEMPLATES, splitMessage } from '../core/notifications.js'
@@ -13,17 +13,20 @@ import {
   type OpenCodeSession
 } from '../opencode/client.js'
 
-const config = loadConfig()
+// Lazy initialization - bot is only created when startBot() is called
+let config: Config | null = null
+let bot: Bot | null = null
+let openCodeSessions: Map<string, OpenCodeSession> | null = null
 
-// Create bot instance
-const bot = new Bot(config.telegramBotToken)
+// Helper to get thread ID
+function getThreadId(ctx: any): string {
+  const chatId = ctx.chat?.id
+  const threadId = ctx.message?.message_thread_id || ctx.message?.message_id
+  return `${chatId}:${threadId}`
+}
 
-// Initialize session manager
-initSessionManager(config)
-
-// Store OpenCode sessions by thread ID
-const openCodeSessions = new Map<string, OpenCodeSession>()
-
+// Setup bot commands
+function setupBotCommands(bot: Bot, openCodeSessions: Map<string, OpenCodeSession>) {
 // Start command
 bot.command('start', async (ctx) => {
   await ctx.reply(`🚀 OpenCode Remote Control ready
@@ -236,22 +239,52 @@ bot.catch((err) => {
   console.error('Bot error:', err)
 })
 
-// Helper to get thread ID
-function getThreadId(ctx: any): string {
-  const chatId = ctx.chat?.id
-  const threadId = ctx.message?.message_thread_id || ctx.message?.message_id
-  return `${chatId}:${threadId}`
-}
+} // End of setupBotCommands
 
-export { bot }
-
-// Start bot function
+// Start bot function - initializes everything lazily
 export async function startBot() {
-  if (!config.telegramBotToken) {
-    console.error('ERROR: TELEGRAM_BOT_TOKEN not set')
-    console.log('Get a token from @BotFather on Telegram')
+  // Load config
+  config = loadConfig()
+
+  if (!config.telegramBotToken || config.telegramBotToken === 'your_bot_token_here') {
+    console.log('')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('  ❌ Telegram Bot Token not configured')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('')
+    console.log('  To get your bot token:')
+    console.log('')
+    console.log('  1. Open Telegram app')
+    console.log('  2. Search for @BotFather')
+    console.log('  3. Send: /newbot')
+    console.log('  4. Follow the instructions to create your bot')
+    console.log('  5. Copy the token (looks like: 123456789:ABCdef...)')
+    console.log('')
+    console.log('  Then run: opencode-remote config')
+    console.log('')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     process.exit(1)
   }
+
+  // Show banner
+  console.log('')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('  OpenCode Remote Control')
+  console.log('  Control OpenCode from Telegram')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('')
+
+  // Create bot instance
+  bot = new Bot(config.telegramBotToken)
+
+  // Initialize session manager
+  initSessionManager(config)
+
+  // Initialize OpenCode sessions map
+  openCodeSessions = new Map<string, OpenCodeSession>()
+
+  // Setup bot commands
+  setupBotCommands(bot, openCodeSessions)
 
   // Initialize OpenCode
   console.log('🔧 Initializing OpenCode...')

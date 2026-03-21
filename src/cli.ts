@@ -57,9 +57,10 @@ async function promptToken(): Promise<string> {
 }
 
 async function getConfig(): Promise<string | null> {
-  // Check environment variable first
-  if (process.env.TELEGRAM_BOT_TOKEN) {
-    return process.env.TELEGRAM_BOT_TOKEN
+  // Check environment variable first (must be non-empty)
+  const envToken = process.env.TELEGRAM_BOT_TOKEN
+  if (envToken && envToken.trim()) {
+    return envToken.trim()
   }
 
   // Check config file
@@ -67,7 +68,10 @@ async function getConfig(): Promise<string | null> {
     const content = readFileSync(CONFIG_FILE, 'utf-8')
     const match = content.match(/TELEGRAM_BOT_TOKEN=(.+)/)
     if (match) {
-      return match[1].trim()
+      const token = match[1].trim()
+      if (token && token !== 'your_bot_token_here') {
+        return token
+      }
     }
   }
 
@@ -77,7 +81,10 @@ async function getConfig(): Promise<string | null> {
     const content = readFileSync(localEnv, 'utf-8')
     const match = content.match(/TELEGRAM_BOT_TOKEN=(.+)/)
     if (match) {
-      return match[1].trim()
+      const token = match[1].trim()
+      if (token && token !== 'your_bot_token_here') {
+        return token
+      }
     }
   }
 
@@ -105,23 +112,16 @@ async function runConfig() {
 
   await saveConfig(token)
   console.log('\n🚀 Ready! Run `opencode-remote` to start the bot.')
+  process.exit(0)
 }
 
 async function runStart() {
-  printBanner()
-
   const token = await getConfig()
 
-  if (!token) {
-    console.log('⚠️  No bot token configured.\n')
-    await runConfig()
-    return
+  // Set token in environment for startBot to use
+  if (token) {
+    process.env.TELEGRAM_BOT_TOKEN = token
   }
-
-  // Set token in environment
-  process.env.TELEGRAM_BOT_TOKEN = token
-
-  console.log('🚀 Starting bot...\n')
 
   try {
     await startBot()
