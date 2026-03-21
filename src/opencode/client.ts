@@ -1,7 +1,6 @@
 // OpenCode SDK client for remote control
 
 import { createOpencode } from '@opencode-ai/sdk'
-import type { Session } from '../core/types.ts'
 
 export interface OpenCodeSession {
   sessionId: string
@@ -10,23 +9,7 @@ export interface OpenCodeSession {
   shareUrl?: string
 }
 
-export interface OpenCodeMessage {
-  type: 'text' | 'tool_update' | 'permission_request' | 'session_end'
-  content: string
-  toolName?: string
-  toolStatus?: string
-  permissionId?: string
-  permissionDescription?: string
-}
-
 let opencodeInstance: Awaited<ReturnType<typeof createOpencode>> | null = null
-let eventSubscription: AsyncIterable<any> | null = null
-
-// Callback registry for permission requests
-const permissionCallbacks = new Map<string, {
-  resolve: (approved: boolean) => void
-  sessionThreadId: string
-}>()
 
 export async function initOpenCode(): Promise<Awaited<ReturnType<typeof createOpencode>>> {
   if (opencodeInstance) {
@@ -39,50 +22,7 @@ export async function initOpenCode(): Promise<Awaited<ReturnType<typeof createOp
   })
   console.log('✅ OpenCode server ready')
 
-  // Subscribe to events for live updates
-  subscribeToEvents(opencodeInstance)
-
   return opencodeInstance
-}
-
-async function subscribeToEvents(opencode: Awaited<ReturnType<typeof createOpencode>>) {
-  try {
-    eventSubscription = await opencode.client.event.subscribe()
-
-    // Process events in background
-    ;(async () => {
-      try {
-        for await (const event of (eventSubscription as AsyncIterable<any>).stream) {
-          handleEvent(event)
-        }
-      } catch (error) {
-        console.error('Event stream error:', error)
-      }
-    })()
-  } catch (error) {
-    console.error('Failed to subscribe to events:', error)
-  }
-}
-
-function handleEvent(event: any) {
-  console.log('📡 OpenCode event:', event.type)
-
-  if (event.type === 'message.part.updated') {
-    const part = event.properties?.part
-    if (part?.type === 'tool' && part?.state?.status === 'completed') {
-      // Tool completed - we can notify the user
-      console.log(`🔧 Tool completed: ${part.tool} - ${part.state.title}`)
-    }
-  }
-
-  if (event.type === 'permission.requested') {
-    const permission = event.properties
-    const callback = permissionCallbacks.get(permission.sessionId)
-    if (callback) {
-      // Store the permission request for the session
-      console.log(`📝 Permission requested: ${permission.description}`)
-    }
-  }
 }
 
 export async function createSession(
