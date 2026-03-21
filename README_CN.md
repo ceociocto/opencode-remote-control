@@ -1,24 +1,24 @@
 # OpenCode Remote Control
 
-[中文文档](./README_CN.md)
+[English](./README.md)
 
-Control OpenCode from anywhere via Telegram.
+通过 Telegram 远程控制 OpenCode。
 
-## Installation
+## 安装
 
 ```bash
-# Install globally with npm, pnpm, or bun
+# 使用 npm、pnpm 或 bun 全局安装
 npm install -g opencode-remote-control
-# or
+# 或
 pnpm install -g opencode-remote-control
-# or
+# 或
 bun install -g opencode-remote-control
 
-# Run (will prompt for token on first run)
+# 运行（首次运行会提示输入 token）
 opencode-remote
 ```
 
-### Install from Source
+### 从源码安装
 
 ```bash
 git clone https://github.com/ceociocto/opencode-remote-control.git
@@ -28,49 +28,49 @@ bun run build
 node dist/cli.js
 ```
 
-## Setup
+## 配置
 
-On first run, you'll be prompted for a Telegram bot token:
+首次运行时，会提示输入 Telegram 机器人 token：
 
-1. Open Telegram, search **@BotFather**
-2. Send `/newbot` and follow instructions
-3. Paste the token when prompted
+1. 打开 Telegram，搜索 **@BotFather**
+2. 发送 `/newbot` 并按提示操作
+3. 将获取的 token 粘贴到提示中
 
-Token is saved to `~/.opencode-remote/.env`
+Token 会保存到 `~/.opencode-remote/.env`
 
-## Commands
+## 命令
 
-**CLI:**
+**命令行：**
 ```
-opencode-remote         # Start the bot
-opencode-remote config  # Reconfigure token
-opencode-remote help    # Show help
+opencode-remote         # 启动机器人
+opencode-remote config  # 重新配置 token
+opencode-remote help    # 显示帮助
 ```
 
-**Telegram:**
-| Command | Description |
+**Telegram：**
+| 命令 | 说明 |
 |--------|-------------|
-| `/start` | Start the bot |
-| `/help` | Show all commands |
-| `/status` | Check connection status |
-| `/approve` | Approve pending changes |
-| `/reject` | Reject pending changes |
-| `/diff` | View pending diff |
-| `/files` | List changed files |
-| `/reset` | Reset session |
+| `/start` | 启动机器人 |
+| `/help` | 显示所有命令 |
+| `/status` | 检查连接状态 |
+| `/approve` | 批准待处理的更改 |
+| `/reject` | 拒绝待处理的更改 |
+| `/diff` | 查看待处理的 diff |
+| `/files` | 列出已更改的文件 |
+| `/reset` | 重置会话 |
 
-## How It Works
+## 工作原理
 
 ```
 ┌─────────────────┐                    ┌──────────────────┐
 │  Telegram App   │                    │  Telegram Server │
-│   (Mobile)      │◀──── Messages ────▶│     (Cloud)      │
+│   (手机)        │◀────── 消息 ──────▶│     (云端)       │
 └─────────────────┘                    └────────┬─────────┘
                                                 │
                      ┌──────── Polling ─────────┘
                      ▼
 ┌─────────────────────────────────────────────────────────┐
-│              Bot Service (Local Machine)                │
+│              Bot Service (本地电脑)                      │
 │  ┌─────────────┐      ┌──────────────┐                  │
 │  │ Telegram    │      │   Session    │                  │
 │  │ Bot         │─────▶│   Manager    │                  │
@@ -83,24 +83,24 @@ opencode-remote help    # Show help
 └─────────────────────────────────────────────────────────┘
 ```
 
-The bot uses **Polling Mode** to fetch messages from Telegram servers, requiring no tunnel or public IP configuration.
+机器人使用 **Polling 模式** 主动从 Telegram 服务器拉取消息，无需配置 tunnel 或公网地址。
 
-## Requirements
+## 系统要求
 
 - Node.js >= 18.0.0
-- [OpenCode](https://github.com/opencode-ai/opencode) installed
-- Telegram account
+- 已安装 [OpenCode](https://github.com/opencode-ai/opencode)
+- Telegram 账号
 
-## Contributing
+## 参与贡献
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+欢迎贡献代码！请随时提交 Pull Request。
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add some amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 提交 Pull Request
 
-## License
+## 许可证
 
 MIT
