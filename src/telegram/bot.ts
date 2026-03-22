@@ -11,6 +11,12 @@ import {
   checkConnection,
   type OpenCodeSession
 } from '../opencode/client.js'
+import {
+  isAuthorized,
+  hasOwner,
+  claimOwnership,
+  getAuthStatus
+} from '../core/auth.js'
 
 // Lazy initialization - bot is only created when startBot() is called
 let config: Config | null = null
@@ -28,11 +34,46 @@ function getThreadId(ctx: any): string {
 function setupBotCommands(bot: Bot, openCodeSessions: Map<string, OpenCodeSession>) {
 // Start command
 bot.command('start', async (ctx) => {
-  await ctx.reply(`🚀 OpenCode Remote Control ready
+  const userId = String(ctx.from?.id)
+  const result = claimOwnership('telegram', userId)
+
+  if (result.success) {
+    if (result.message === 'claimed') {
+      await ctx.reply(`🔐 **Security Setup Complete!**
+
+✅ You are now the authorized owner of this bot.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  **IMPORTANT SECURITY NOTICE**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Only YOU can control OpenCode through this bot.
+Other users will be blocked automatically.
+
+Your Telegram ID: \`${userId}\`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 **Ready to use!**
+💬 Send me a prompt to start coding
+/help — see all commands
+/status — check OpenCode connection`, { parse_mode: 'Markdown' })
+    } else {
+      // Already owner
+      await ctx.reply(`🚀 OpenCode Remote Control ready
 
 💬 Send me a prompt to start coding
 /help — see all commands
 /status — check OpenCode connection`)
+    }
+  } else {
+    // Already claimed by someone else
+    await ctx.reply(`🚫 **Access Denied**
+
+This bot is already secured by another user.
+
+If you are the owner, check your configuration.`, { parse_mode: 'Markdown' })
+  }
 })
 
 // Help command
@@ -172,9 +213,26 @@ bot.command('retry', async (ctx) => {
 // Handle all other messages as prompts
 bot.on('message:text', async (ctx) => {
   const text = ctx.message.text
+  const userId = String(ctx.from?.id)
 
   // Skip if it's a command (already handled)
   if (text.startsWith('/')) return
+
+  // Authorization check
+  if (!isAuthorized('telegram', userId)) {
+    if (!hasOwner('telegram')) {
+      await ctx.reply(`🔐 **Authorization Required**
+
+This bot is not yet secured.
+
+Please send /start to claim ownership first.`, { parse_mode: 'Markdown' })
+    } else {
+      await ctx.reply(`🚫 **Access Denied**
+
+You are not authorized to use this bot.` , { parse_mode: 'Markdown' })
+    }
+    return
+  }
 
   const threadId = getThreadId(ctx)
 
@@ -295,6 +353,24 @@ export async function startBot() {
   }
 
   console.log('🚀 Starting Telegram bot...')
+
+  // Show security status
+  const authStatus = getAuthStatus()
+  if (!authStatus.telegram) {
+    console.log('')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('  🔐 SECURITY NOTICE')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('')
+    console.log('  Bot is NOT yet secured!')
+    console.log('  The FIRST user to send /start will become the owner.')
+    console.log('')
+    console.log('  👉 Open Telegram and send /start to YOUR bot NOW!')
+    console.log('')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  } else {
+    console.log('🔒 Bot is secured (owner authorized)')
+  }
 
   // Handle graceful shutdown
   const shutdown = async () => {
