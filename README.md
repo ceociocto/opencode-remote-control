@@ -1,5 +1,7 @@
 # OpenCode Remote Control
 
+> **Lightning-fast AI coding assistant powered by OpenCode — no Claude Code subscription required!**
+
 <p align="center">
   <a href="https://github.com/ceociocto/opencode-remote-control/actions/workflows/publish.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/ceociocto/opencode-remote-control/publish.yml?branch=main&style=for-the-badge" alt="CI status"></a>
   <a href="https://www.npmjs.com/package/opencode-remote-control"><img src="https://img.shields.io/npm/v/opencode-remote-control?style=for-the-badge" alt="npm version"></a>
@@ -11,9 +13,13 @@
   <a href="./README_CN.md">中文文档</a>
 </p>
 
-<p align="center">
-  Control OpenCode from anywhere via Telegram or Feishu.
-</p>
+Control OpenCode from anywhere via Telegram or Feishu.
+
+## What's New in v0.2
+
+- **Feishu Channel** — Now supports Feishu/Lark bot with WebSocket long connection (no tunnel required!)
+- **Faster Responses** — Optimized timeout handling for long AI responses
+- **Better CLI** — Improved configuration experience with existing value display
 
 ## Requirements
 

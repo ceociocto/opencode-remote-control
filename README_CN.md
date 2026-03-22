@@ -1,8 +1,16 @@
 # OpenCode Remote Control
 
+> **基于 OpenCode 的极速 AI 编程助手 — 无需订阅 Claude Code！**
+
 [English](./README.md)
 
 通过 Telegram 或飞书远程控制 OpenCode。
+
+## v0.2 新特性
+
+- **飞书频道** — 新增飞书/Lark 机器人支持，使用 WebSocket 长连接（无需内网穿透！）
+- **响应更快** — 优化长时间 AI 响应的超时处理
+- **更好的 CLI** — 改进配置体验，显示已有配置值
 
 ## 系统要求
 
