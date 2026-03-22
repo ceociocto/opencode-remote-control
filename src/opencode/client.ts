@@ -1,8 +1,11 @@
 // OpenCode SDK client for remote control
 
-import { spawn } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { platform } from 'node:os'
 import { createOpencode } from '@opencode-ai/sdk'
+
+const require = createRequire(import.meta.url)
+const childProcess = require('node:child_process')
 
 // Patch undici's default HeadersTimeout (30s) to 30 minutes for long AI responses.
 // undici is Node.js's default fetch implementation and enforces headersTimeout on
@@ -32,9 +35,9 @@ function patchFetchForUnlimitedTimeout() {
 // Windows compatibility: patch child_process.spawn to use shell for 'opencode' command
 // This is needed because Windows requires shell: true to execute .cmd files
 if (platform() === 'win32') {
-  const originalSpawn = spawn
+  const originalSpawn = childProcess.spawn
   // @ts-ignore - monkey patching for Windows compatibility
-  require('node:child_process').spawn = function(command: string, args: string[], options: any = {}) {
+  childProcess.spawn = function(command: string, args: string[], options: any = {}) {
     if (command === 'opencode' && !options.shell) {
       options.shell = true
     }
@@ -50,20 +53,20 @@ export async function verifyOpenCodeInstalled(): Promise<{ ok: boolean; error?: 
   return new Promise((resolve) => {
     const isWindows = platform() === 'win32'
     const command = isWindows ? 'where' : 'which'
-    const proc = spawn(command, ['opencode'], { shell: isWindows })
+    const proc = childProcess.spawn(command, ['opencode'], { shell: isWindows })
 
     let output = ''
     let errorOutput = ''
 
-    proc.stdout?.on('data', (chunk) => {
+    proc.stdout?.on('data', (chunk: Buffer) => {
       output += chunk.toString()
     })
 
-    proc.stderr?.on('data', (chunk) => {
+    proc.stderr?.on('data', (chunk: Buffer) => {
       errorOutput += chunk.toString()
     })
 
-    proc.on('close', (code) => {
+    proc.on('close', (code: number | null) => {
       if (code === 0 && output.trim()) {
         resolve({ ok: true })
       } else {
@@ -74,7 +77,7 @@ export async function verifyOpenCodeInstalled(): Promise<{ ok: boolean; error?: 
       }
     })
 
-    proc.on('error', (err) => {
+    proc.on('error', (err: Error) => {
       resolve({
         ok: false,
         error: `Failed to check OpenCode installation: ${err.message}\n\nPlease ensure OpenCode is installed:\n  npm install -g @opencode-ai/opencode`
