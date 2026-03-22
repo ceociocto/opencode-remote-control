@@ -295,5 +295,23 @@ export async function startBot() {
   }
 
   console.log('🚀 Starting Telegram bot...')
+
+  // Handle graceful shutdown
+  const shutdown = async () => {
+    console.log('\n🛑 Shutting down Telegram bot...')
+    if (bot) {
+      await bot.stop()
+    }
+    console.log('Telegram bot stopped')
+  }
+
+  process.once('SIGINT', async () => {
+    await shutdown()
+  })
+
+  process.once('SIGTERM', async () => {
+    await shutdown()
+  })
+
   await bot.start()
 }

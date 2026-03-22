@@ -414,7 +414,15 @@ export async function startFeishuBot(botConfig: Config) {
     })
 
     // Handle graceful shutdown
-    process.on('SIGINT', () => {
+    process.once('SIGINT', () => {
+      console.log('\n🛑 Shutting down Feishu bot...')
+      server.close(() => {
+        console.log('Feishu bot stopped')
+        resolve()
+      })
+    })
+
+    process.once('SIGTERM', () => {
       console.log('\n🛑 Shutting down Feishu bot...')
       server.close(() => {
         console.log('Feishu bot stopped')

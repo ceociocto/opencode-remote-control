@@ -53,7 +53,22 @@ async function promptChannel(): Promise<'telegram' | 'feishu'> {
 
   const choice = await new Promise<string>((resolve) => {
     process.stdin.setEncoding('utf8')
+
+    const cleanup = () => {
+      process.stdin.pause()
+      process.removeListener('SIGINT', onSigint)
+    }
+
+    const onSigint = () => {
+      cleanup()
+      console.log('\nCancelled')
+      process.exit(0)
+    }
+
+    process.once('SIGINT', onSigint)
+
     process.stdin.once('data', (chunk) => {
+      cleanup()
       resolve(chunk.toString().trim())
     })
   })
@@ -83,7 +98,22 @@ async function promptToken(): Promise<string> {
   // Read from stdin
   const token = await new Promise<string>((resolve) => {
     process.stdin.setEncoding('utf8')
+
+    const cleanup = () => {
+      process.stdin.pause()
+      process.removeListener('SIGINT', onSigint)
+    }
+
+    const onSigint = () => {
+      cleanup()
+      console.log('\nCancelled')
+      process.exit(0)
+    }
+
+    process.once('SIGINT', onSigint)
+
     process.stdin.once('data', (chunk) => {
+      cleanup()
       resolve(chunk.toString().trim())
     })
   })
@@ -101,21 +131,34 @@ async function promptFeishuConfig(): Promise<{ appId: string; appSecret: string 
   console.log('  4. Go to "凭证与基础信息" (Credentials) page')
   console.log('')
 
-  process.stdout.write('Enter your App ID: ')
-  const appId = await new Promise<string>((resolve) => {
-    process.stdin.setEncoding('utf8')
-    process.stdin.once('data', (chunk) => {
-      resolve(chunk.toString().trim())
-    })
-  })
+  const promptInput = async (promptText: string): Promise<string> => {
+    process.stdout.write(promptText)
 
-  process.stdout.write('Enter your App Secret: ')
-  const appSecret = await new Promise<string>((resolve) => {
-    process.stdin.setEncoding('utf8')
-    process.stdin.once('data', (chunk) => {
-      resolve(chunk.toString().trim())
+    return new Promise<string>((resolve) => {
+      process.stdin.setEncoding('utf8')
+
+      const cleanup = () => {
+        process.stdin.pause()
+        process.removeListener('SIGINT', onSigint)
+      }
+
+      const onSigint = () => {
+        cleanup()
+        console.log('\nCancelled')
+        process.exit(0)
+      }
+
+      process.once('SIGINT', onSigint)
+
+      process.stdin.once('data', (chunk) => {
+        cleanup()
+        resolve(chunk.toString().trim())
+      })
     })
-  })
+  }
+
+  const appId = await promptInput('Enter your App ID: ')
+  const appSecret = await promptInput('Enter your App Secret: ')
 
   return { appId, appSecret }
 }
@@ -374,6 +417,25 @@ async function runStart() {
     console.log('  opencode-remote config-feishu # Configure Feishu')
     process.exit(1)
   }
+
+  // Track shutdown state
+  let isShuttingDown = false
+
+  // Handle graceful shutdown at CLI level
+  const handleShutdown = () => {
+    if (isShuttingDown) return
+    isShuttingDown = true
+    console.log('\n🛑 Shutting down...')
+    // The individual bots will handle their own cleanup via their SIGINT handlers
+    // We just need to ensure the process exits
+    setTimeout(() => {
+      console.log('Goodbye!')
+      process.exit(0)
+    }, 1000)
+  }
+
+  process.once('SIGINT', handleShutdown)
+  process.once('SIGTERM', handleShutdown)
 
   // Start bots
   const promises = []
