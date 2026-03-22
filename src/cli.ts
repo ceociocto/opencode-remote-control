@@ -97,6 +97,7 @@ async function promptToken(): Promise<string> {
 
   // Read from stdin
   const token = await new Promise<string>((resolve) => {
+    process.stdin.resume()
     process.stdin.setEncoding('utf8')
 
     const cleanup = () => {
@@ -140,6 +141,7 @@ async function promptFeishuConfig(): Promise<{ appId: string; appSecret: string 
     process.stdout.write(promptText)
 
     return new Promise<string>((resolve) => {
+      process.stdin.resume()
       process.stdin.setEncoding('utf8')
 
       const cleanup = () => {
