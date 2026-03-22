@@ -10,6 +10,7 @@ import type { Config } from './core/types.js'
 
 const CONFIG_DIR = join(homedir(), '.opencode-remote')
 const CONFIG_FILE = join(CONFIG_DIR, '.env')
+const VERSION = '0.4.0'
 
 function printBanner() {
   console.log(`
@@ -30,6 +31,10 @@ Commands:
   feishu             Start Feishu bot only
   config             Configure a channel (interactive selection)
   help               Show this help message
+  version            Show version information
+
+Options:
+  -v, --version      Show version number
 
 Examples:
   opencode-remote              # Start all bots
@@ -37,6 +42,7 @@ Examples:
   opencode-remote telegram     # Start Telegram only
   opencode-remote feishu       # Start Feishu only
   opencode-remote config       # Interactive channel selection
+  opencode-remote --version    # Show version
 `)
 }
 
@@ -584,6 +590,11 @@ switch (command) {
   case '-h':
     printBanner()
     printHelp()
+    break
+  case 'version':
+  case '--version':
+  case '-v':
+    console.log(`opencode-remote v${VERSION}`)
     break
   default:
     console.log(`Unknown command: ${command}`)
