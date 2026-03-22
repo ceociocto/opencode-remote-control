@@ -15,15 +15,37 @@
   Control OpenCode from anywhere via Telegram or Feishu.
 </p>
 
+## Requirements
+
+- Node.js >= 18.0.0
+- [OpenCode](https://github.com/opencode-ai/opencode) installed and accessible in PATH
+- Telegram account (for Telegram bot)
+- Feishu account (for Feishu bot)
+- ngrok or cloudflared (for Feishu webhook)
+
+### Verify OpenCode Installation
+
+Before starting, make sure OpenCode is installed and accessible:
+
+```bash
+opencode --version
+```
+
+If you see `command not found`, install OpenCode first:
+
+```bash
+npm install -g @opencode-ai/opencode
+```
+
 ## Installation
 
 ```bash
 # Install globally with npm, pnpm, or bun
-npm install -g opencode-remote-control
+npm install -g opencode-remote-control@latest
 # or
-pnpm install -g opencode-remote-control
+pnpm install -g opencode-remote-control@latest
 # or
-bun install -g opencode-remote-control
+bun install -g opencode-remote-control@latest
 ```
 
 ## Configuration
@@ -47,6 +69,16 @@ Token is saved to `~/.opencode-remote/.env`
 ### Feishu Setup
 
 For detailed Feishu setup instructions, see [Feishu Setup Guide](./docs/FEISHU_SETUP_EN.md) or [飞书配置指南](./docs/FEISHU_SETUP.md).
+
+## Start Service
+
+Once configured, start the bot service:
+
+```bash
+opencode-remote
+```
+
+That's it! You can now send messages to your Telegram bot or Feishu bot to control OpenCode remotely.
 
 ## Usage
 
@@ -135,14 +167,6 @@ The Telegram bot uses **Polling Mode** to fetch messages from Telegram servers, 
 ```
 
 The Feishu bot uses **Webhook Mode** and requires a tunnel (ngrok/cloudflared) to receive messages.
-
-## Requirements
-
-- Node.js >= 18.0.0
-- [OpenCode](https://github.com/opencode-ai/opencode) installed
-- Telegram account (for Telegram bot)
-- Feishu account (for Feishu bot)
-- ngrok or cloudflared (for Feishu webhook)
 
 ## Contributing
 

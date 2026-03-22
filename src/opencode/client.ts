@@ -1,6 +1,62 @@
 // OpenCode SDK client for remote control
 
+import { spawn } from 'node:child_process'
+import { platform } from 'node:os'
 import { createOpencode } from '@opencode-ai/sdk'
+
+// Windows compatibility: patch child_process.spawn to use shell for 'opencode' command
+// This is needed because Windows requires shell: true to execute .cmd files
+if (platform() === 'win32') {
+  const originalSpawn = spawn
+  // @ts-ignore - monkey patching for Windows compatibility
+  require('node:child_process').spawn = function(command: string, args: string[], options: any = {}) {
+    if (command === 'opencode' && !options.shell) {
+      options.shell = true
+    }
+    return originalSpawn(command, args, options)
+  }
+}
+
+/**
+ * Verify that OpenCode is installed and accessible
+ * This helps catch issues early before the SDK tries to spawn the process
+ */
+export async function verifyOpenCodeInstalled(): Promise<{ ok: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    const isWindows = platform() === 'win32'
+    const command = isWindows ? 'where' : 'which'
+    const proc = spawn(command, ['opencode'], { shell: isWindows })
+
+    let output = ''
+    let errorOutput = ''
+
+    proc.stdout?.on('data', (chunk) => {
+      output += chunk.toString()
+    })
+
+    proc.stderr?.on('data', (chunk) => {
+      errorOutput += chunk.toString()
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0 && output.trim()) {
+        resolve({ ok: true })
+      } else {
+        resolve({
+          ok: false,
+          error: `OpenCode not found in PATH. Please install it first:\n  npm install -g @opencode-ai/opencode\n\nThen verify with:\n  opencode --version`
+        })
+      }
+    })
+
+    proc.on('error', (err) => {
+      resolve({
+        ok: false,
+        error: `Failed to check OpenCode installation: ${err.message}\n\nPlease ensure OpenCode is installed:\n  npm install -g @opencode-ai/opencode`
+      })
+    })
+  })
+}
 
 export interface OpenCodeSession {
   sessionId: string
@@ -10,17 +66,42 @@ export interface OpenCodeSession {
 }
 
 let opencodeInstance: Awaited<ReturnType<typeof createOpencode>> | null = null
+let verificationDone = false
 
 export async function initOpenCode(): Promise<Awaited<ReturnType<typeof createOpencode>>> {
   if (opencodeInstance) {
     return opencodeInstance
   }
 
+  // Verify OpenCode is installed (only once)
+  if (!verificationDone) {
+    verificationDone = true
+    console.log('🔧 Verifying OpenCode installation...')
+    const verification = await verifyOpenCodeInstalled()
+    if (!verification.ok) {
+      console.error('\n❌ ' + verification.error)
+      throw new Error('OpenCode not found. Please install it first: npm install -g @opencode-ai/opencode')
+    }
+    console.log('✅ OpenCode found')
+  }
+
   console.log('🚀 Starting OpenCode server...')
-  opencodeInstance = await createOpencode({
-    port: 0, // Don't start HTTP server
-  })
-  console.log('✅ OpenCode server ready')
+  try {
+    opencodeInstance = await createOpencode({
+      port: 0, // Don't start HTTP server
+    })
+    console.log('✅ OpenCode server ready')
+  } catch (error) {
+    const isWindows = platform() === 'win32'
+    if (isWindows) {
+      console.error('\n❌ Failed to start OpenCode server.')
+      console.error('This may be a Windows compatibility issue.')
+      console.error('Please ensure OpenCode is installed correctly:')
+      console.error('  1. Run: npm install -g @opencode-ai/opencode')
+      console.error('  2. Verify: opencode --version')
+    }
+    throw error
+  }
 
   return opencodeInstance
 }
