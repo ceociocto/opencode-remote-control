@@ -4,7 +4,7 @@ import express, { type Request, type Response } from 'express'
 import * as lark from '@larksuiteoapi/node-sdk'
 import type { Config, MessageContext } from '../core/types.js'
 import { initSessionManager, getOrCreateSession } from '../core/session.js'
-import { TEMPLATES, splitMessage } from '../core/notifications.js'
+import { splitMessage } from '../core/notifications.js'
 import type { BotAdapter } from '../core/handler-common.js'
 import { EMOJI } from '../core/types.js'
 import {
@@ -33,12 +33,12 @@ function feishuEventToContext(event: any): MessageContext {
 // BotAdapter implementation for Feishu
 function createFeishuAdapter(client: lark.Client): BotAdapter {
   return {
-    async reply(threadId: string, text: string): Promise<void> {
+    async reply(threadId: string, text: string): Promise<string> {
       // Extract chat_id from threadId (format: feishu:chat_id)
       const chatId = threadId.replace('feishu:', '')
 
       try {
-        await client.im.message.create({
+        const result = await client.im.message.create({
           params: { receive_id_type: 'chat_id' },
           data: {
             receive_id: chatId,
@@ -46,6 +46,7 @@ function createFeishuAdapter(client: lark.Client): BotAdapter {
             content: JSON.stringify({ text }),
           },
         })
+        return result.data?.message_id || ''
       } catch (error) {
         console.error('Failed to send Feishu message:', error)
         throw error
@@ -55,6 +56,18 @@ function createFeishuAdapter(client: lark.Client): BotAdapter {
     async sendTypingIndicator(threadId: string): Promise<void> {
       // Feishu doesn't have typing indicator
       // Could optionally send a "thinking..." message, but we'll skip for now
+    },
+
+    async deleteMessage(threadId: string, messageId: string): Promise<void> {
+      if (!messageId) return
+      try {
+        await client.im.message.delete({
+          path: { message_id: messageId },
+        })
+      } catch (error) {
+        // Ignore delete errors - not critical
+        console.warn('Failed to delete Feishu message:', error)
+      }
     },
   }
 }
@@ -98,7 +111,7 @@ Commands:
         return
       }
       // TODO: Actually apply changes via OpenCode SDK
-      await adapter.reply(ctx.threadId, TEMPLATES.approved())
+      await adapter.reply(ctx.threadId, '✅ Approved — changes applied')
       break
     }
 
@@ -109,7 +122,7 @@ Commands:
         return
       }
       session.pendingApprovals.shift()
-      await adapter.reply(ctx.threadId, TEMPLATES.rejected())
+      await adapter.reply(ctx.threadId, '❌ Rejected — changes discarded')
       break
     }
 
@@ -208,14 +221,12 @@ Cannot connect to OpenCode server.
     return
   }
 
-  // It's a prompt - send to OpenCode
-  await adapter.sendTypingIndicator(ctx.threadId)
+  // Send typing indicator (Feishu style)
+  const typingMsg = await adapter.reply(ctx.threadId, '⏳')
 
   // Get or create OpenCode session
   let openCodeSession = openCodeSessions?.get(ctx.threadId)
   if (!openCodeSession) {
-    await adapter.reply(ctx.threadId, '⏳ Creating session...')
-
     const newSession = await createSession(ctx.threadId, `Feishu chat ${ctx.threadId}`)
     if (!newSession) {
       await adapter.reply(ctx.threadId, '❌ Failed to create OpenCode session')
@@ -226,17 +237,19 @@ Cannot connect to OpenCode server.
     openCodeSessions!.set(ctx.threadId, openCodeSession)
     session.opencodeSessionId = openCodeSession.sessionId
 
-    // Share the session URL
+    // Share the session URL (only if sharing is enabled)
     if (openCodeSession.shareUrl) {
       await adapter.reply(ctx.threadId, `🔗 Session: ${openCodeSession.shareUrl}`)
     }
   }
 
-  // Send prompt to OpenCode
-  await adapter.reply(ctx.threadId, TEMPLATES.thinking())
-
   try {
     const response = await sendMessage(openCodeSession, text)
+
+    // Delete typing indicator
+    if (adapter.deleteMessage && typingMsg) {
+      await adapter.deleteMessage(ctx.threadId, typingMsg)
+    }
 
     // Split long messages
     const messages = splitMessage(response)

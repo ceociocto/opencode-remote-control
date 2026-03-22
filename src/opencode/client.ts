@@ -26,7 +26,7 @@ export async function initOpenCode(): Promise<Awaited<ReturnType<typeof createOp
 }
 
 export async function createSession(
-  threadId: string,
+  _threadId: string,
   title: string = `Remote control session`
 ): Promise<OpenCodeSession | null> {
   const opencode = await initOpenCode()
@@ -44,15 +44,18 @@ export async function createSession(
     const sessionId = createResult.data.id
     console.log(`✅ Created OpenCode session: ${sessionId}`)
 
-    // Share the session to get a URL
+    // Note: Sharing is disabled by default for privacy
+    // Set SHARE_SESSIONS=true in .env to enable public sharing
     let shareUrl: string | undefined
-    const shareResult = await opencode.client.session.share({
-      path: { id: sessionId }
-    })
+    if (process.env.SHARE_SESSIONS === 'true') {
+      const shareResult = await opencode.client.session.share({
+        path: { id: sessionId }
+      })
 
-    if (!shareResult.error && shareResult.data?.share?.url) {
-      shareUrl = shareResult.data.share.url
-      console.log(`🔗 Session shared: ${shareUrl}`)
+      if (!shareResult.error && shareResult.data?.share?.url) {
+        shareUrl = shareResult.data.share.url
+        console.log(`🔗 Session shared: ${shareUrl}`)
+      }
     }
 
     return {

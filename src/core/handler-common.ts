@@ -6,8 +6,9 @@ import { createApprovalRequest, waitForApproval, formatApprovalMessage } from '.
 import { TEMPLATES, splitMessage } from './notifications.js'
 
 export interface BotAdapter {
-  reply(threadId: string, text: string): Promise<void>
+  reply(threadId: string, text: string): Promise<string | void>
   sendTypingIndicator(threadId: string): Promise<void>
+  deleteMessage?(threadId: string, messageId: string): Promise<void>
   onApprovalNeeded?: (threadId: string, message: string) => Promise<void>
 }
 

@@ -1,10 +1,9 @@
 // Telegram bot implementation for OpenCode Remote Control
 
-import { Bot, GrammyError } from 'grammy'
-import { loadConfig, EMOJI, type Config } from '../core/types.js'
-import { initSessionManager, getOrCreateSession, updateSession } from '../core/session.js'
-import { formatApprovalMessage } from '../core/approval.js'
-import { TEMPLATES, splitMessage } from '../core/notifications.js'
+import { Bot } from 'grammy'
+import { loadConfig, type Config } from '../core/types.js'
+import { initSessionManager, getOrCreateSession } from '../core/session.js'
+import { splitMessage } from '../core/notifications.js'
 import {
   initOpenCode,
   createSession,
@@ -199,8 +198,7 @@ Cannot connect to OpenCode server.
   // Get or create OpenCode session
   let openCodeSession = openCodeSessions.get(threadId)
   if (!openCodeSession) {
-    await ctx.reply('⏳ Creating session...')
-
+    // Keep typing indicator while creating session
     const newSession = await createSession(threadId, `Telegram thread ${threadId}`)
     if (!newSession) {
       await ctx.reply('❌ Failed to create OpenCode session')
@@ -211,14 +209,14 @@ Cannot connect to OpenCode server.
     openCodeSessions.set(threadId, openCodeSession)
     session.opencodeSessionId = openCodeSession.sessionId
 
-    // Share the session URL
+    // Share the session URL (only if sharing is enabled)
     if (openCodeSession.shareUrl) {
       await ctx.reply(`🔗 Session: ${openCodeSession.shareUrl}`)
     }
   }
 
-  // Send prompt to OpenCode
-  await ctx.reply('⏳ Thinking...')
+  // Refresh typing indicator before sending prompt
+  await ctx.api.sendChatAction(ctx.chat!.id, 'typing')
 
   try {
     const response = await sendMessage(openCodeSession, text)
