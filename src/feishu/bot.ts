@@ -12,7 +12,8 @@ import {
   createSession,
   sendMessage,
   checkConnection,
-  type OpenCodeSession
+  type OpenCodeSession,
+  type StreamCallbacks
 } from '../opencode/client.js'
 import {
   isAuthorized,
@@ -38,7 +39,9 @@ function feishuEventToContext(event: any): MessageContext {
 }
 
 // BotAdapter implementation for Feishu
-function createFeishuAdapter(client: lark.Client): BotAdapter {
+function createFeishuAdapter(client: lark.Client): BotAdapter & {
+  updateMessage: (threadId: string, messageId: string, text: string) => Promise<void>
+} {
   return {
     async reply(threadId: string, text: string): Promise<string> {
       // Extract chat_id from threadId (format: feishu:chat_id)
@@ -62,7 +65,7 @@ function createFeishuAdapter(client: lark.Client): BotAdapter {
 
     async sendTypingIndicator(threadId: string): Promise<string> {
       // Feishu doesn't have native typing indicator API
-      // We send a "thinking" message that will be deleted later
+      // We send a "thinking" message that will be updated/deleted later
       const chatId = threadId.replace('feishu:', '')
       try {
         const result = await client.im.message.create({
@@ -77,6 +80,21 @@ function createFeishuAdapter(client: lark.Client): BotAdapter {
       } catch (error) {
         console.error('Failed to send typing indicator:', error)
         return ''
+      }
+    },
+
+    async updateMessage(threadId: string, messageId: string, text: string): Promise<void> {
+      if (!messageId) return
+      try {
+        await client.im.message.patch({
+          path: { message_id: messageId },
+          data: {
+            content: JSON.stringify({ text }),
+          },
+        })
+      } catch (error) {
+        // Ignore update errors - not critical
+        console.warn('Failed to update Feishu message:', error)
       }
     },
 
@@ -312,6 +330,11 @@ Cannot connect to OpenCode server.
   console.log('⏳ Sending typing indicator...')
   const typingMsgId = await adapter.sendTypingIndicator(ctx.threadId)
 
+  // Track status updates for progress display
+  let lastStatus = ''
+  let streamingText = ''
+  let statusUpdateCount = 0
+
   // Get or create OpenCode session
   let openCodeSession = openCodeSessions?.get(ctx.threadId)
   if (!openCodeSession) {
@@ -337,7 +360,42 @@ Cannot connect to OpenCode server.
 
   try {
     console.log('🤖 Sending to OpenCode...')
-    const response = await sendMessage(openCodeSession, text)
+    const response = await sendMessage(openCodeSession, text, {
+      onTextDelta: (delta) => {
+        // Accumulate streaming text
+        streamingText += delta
+        // Update the typing message with progress (throttle to avoid rate limits)
+        // Only update every 50 characters or so
+        if (streamingText.length % 50 < delta.length && streamingText.length > 50) {
+          const preview = streamingText.slice(-100)
+          if (typingMsgId && adapter.updateMessage) {
+            adapter.updateMessage(ctx.threadId, typingMsgId, `⏳ 生成中...\n\n...${preview}`).catch(() => {})
+          }
+        }
+      },
+      onStatusChange: (status) => {
+        statusUpdateCount++
+        let statusText: string
+        if (status.type === 'retry') {
+          statusText = `⏳ 重试中 (${status.attempt})...`
+        } else if (status.type === 'busy') {
+          statusText = `⏳ 处理中...`
+        } else {
+          return // idle, ignore
+        }
+        if (statusText !== lastStatus && typingMsgId && adapter.updateMessage) {
+          lastStatus = statusText
+          adapter.updateMessage(ctx.threadId, typingMsgId, statusText).catch(() => {})
+        }
+      },
+      onEvent: (event) => {
+        // Log events for debugging
+        const eventType = (event as any).type
+        if (eventType && !eventType.includes('delta')) {
+          console.log(`📡 Event: ${eventType}`)
+        }
+      }
+    })
     console.log('✅ Got response from OpenCode')
 
     // Delete typing indicator

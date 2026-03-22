@@ -5,7 +5,6 @@
 <p align="center">
   <a href="https://github.com/ceociocto/opencode-remote-control/actions/workflows/publish.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/ceociocto/opencode-remote-control/publish.yml?branch=main&style=for-the-badge" alt="CI status"></a>
   <a href="https://www.npmjs.com/package/opencode-remote-control"><img src="https://img.shields.io/npm/v/opencode-remote-control?style=for-the-badge" alt="npm version"></a>
-  <a href="https://github.com/ceociocto/opencode-remote-control/releases"><img src="https://img.shields.io/github/v/release/ceociocto/opencode-remote-control?include_prereleases&style=for-the-badge" alt="GitHub release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
 </p>
 

@@ -9,7 +9,8 @@ import {
   createSession,
   sendMessage,
   checkConnection,
-  type OpenCodeSession
+  type OpenCodeSession,
+  type StreamCallbacks
 } from '../opencode/client.js'
 import {
   isAuthorized,
@@ -273,11 +274,46 @@ Cannot connect to OpenCode server.
     }
   }
 
-  // Refresh typing indicator before sending prompt
-  await ctx.api.sendChatAction(ctx.chat!.id, 'typing')
+  // Setup continuous typing indicator
+  // Telegram's typing status only lasts ~5 seconds, so we need to keep sending it
+  let typingInterval: NodeJS.Timeout | null = null
+  let isComplete = false
+
+  const startTypingIndicator = () => {
+    // Send initial typing action
+    ctx.api.sendChatAction(ctx.chat!.id, 'typing').catch(() => {})
+
+    // Keep sending typing action every 4 seconds
+    typingInterval = setInterval(() => {
+      if (!isComplete) {
+        ctx.api.sendChatAction(ctx.chat!.id, 'typing').catch(() => {})
+      }
+    }, 4000)
+  }
+
+  const stopTypingIndicator = () => {
+    isComplete = true
+    if (typingInterval) {
+      clearInterval(typingInterval)
+      typingInterval = null
+    }
+  }
+
+  // Start typing indicator
+  startTypingIndicator()
 
   try {
-    const response = await sendMessage(openCodeSession, text)
+    const response = await sendMessage(openCodeSession, text, {
+      onStatusChange: (status) => {
+        // Stop typing when session becomes idle
+        if (status.type === 'idle') {
+          stopTypingIndicator()
+        }
+      }
+    })
+
+    // Make sure typing is stopped
+    stopTypingIndicator()
 
     // Split long messages
     const messages = splitMessage(response)
@@ -285,6 +321,8 @@ Cannot connect to OpenCode server.
       await ctx.reply(msg)
     }
   } catch (error) {
+    // Make sure typing is stopped on error
+    stopTypingIndicator()
     console.error('Error sending message:', error)
     await ctx.reply(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }

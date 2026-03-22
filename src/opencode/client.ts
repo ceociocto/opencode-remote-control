@@ -169,13 +169,80 @@ export async function createSession(
   }
 }
 
+// Callback types for streaming responses
+export interface StreamCallbacks {
+  // Called when a text delta is received (streaming text)
+  onTextDelta?: (delta: string) => void
+  // Called when session status changes (e.g., 'busy' -> 'idle')
+  onStatusChange?: (status: { type: 'idle' } | { type: 'busy' } | { type: 'retry'; attempt: number; message: string; next: number }) => void
+  // Called when any event is received
+  onEvent?: (event: unknown) => void
+}
+
+// Send message with streaming support
+// Returns the final response text, but calls callbacks during streaming
 export async function sendMessage(
   session: OpenCodeSession,
-  message: string
+  message: string,
+  callbacks?: StreamCallbacks
 ): Promise<string> {
   try {
     console.log(`📝 Sending to OpenCode: ${message.slice(0, 50)}...`)
 
+    // Subscribe to events before sending the prompt
+    let eventSubscription: Awaited<ReturnType<typeof session.client.event.subscribe>> | null = null
+    let fullResponseText = ''
+    let isComplete = false
+
+    // Start event subscription if callbacks are provided
+    if (callbacks) {
+      try {
+        eventSubscription = await session.client.event.subscribe({})
+
+        // Process events in background
+        ;(async () => {
+          try {
+            for await (const event of eventSubscription!.stream) {
+              if (isComplete) break
+
+              // Call generic event callback
+              callbacks.onEvent?.(event)
+
+              // Handle specific event types
+              const eventType = (event as any).type
+
+              if (eventType === 'message.part.delta') {
+                // Streaming text delta
+                const delta = (event as any).properties?.delta || ''
+                if (delta) {
+                  fullResponseText += delta
+                  callbacks.onTextDelta?.(delta)
+                }
+              } else if (eventType === 'session.status') {
+                // Session status change
+                const status = (event as any).properties?.status
+                if (status) {
+                  callbacks.onStatusChange?.(status)
+                  // If session becomes idle, we're done
+                  if (status.type === 'idle') {
+                    isComplete = true
+                  }
+                }
+              } else if (eventType === 'session.idle') {
+                // Session is idle - processing complete
+                isComplete = true
+              }
+            }
+          } catch (err) {
+            console.error('Event stream error:', err)
+          }
+        })()
+      } catch (err) {
+        console.error('Failed to subscribe to events:', err)
+      }
+    }
+
+    // Send the prompt
     const result = await session.client.session.prompt({
       path: { id: session.sessionId },
       body: {
@@ -185,6 +252,8 @@ export async function sendMessage(
 
     if (result.error) {
       console.error('Failed to send message:', result.error)
+      // Clean up event subscription
+      isComplete = true
       return `❌ Error: ${(result.error as any).message || 'Failed to send message'}`
     }
 
@@ -196,7 +265,11 @@ export async function sendMessage(
         ?.filter((p: any) => p.type === 'text')
         .map((p: any) => p.text)
         .join('\n') ||
+      fullResponseText || // Fall back to streamed text if available
       'I received your message but didn\'t have a response.'
+
+    // Mark complete and clean up
+    isComplete = true
 
     console.log(`💬 Response: ${responseText.slice(0, 100)}...`)
     return responseText

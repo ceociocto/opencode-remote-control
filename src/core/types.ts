@@ -81,5 +81,6 @@ export function loadConfig(): Config {
 export interface BotAdapter {
   reply(threadId: string, text: string): Promise<string | void>
   sendTypingIndicator(threadId: string): Promise<string | void>
+  updateMessage?(threadId: string, messageId: string, text: string): Promise<void>
   deleteMessage?(threadId: string, messageId: string): Promise<void>
 }
