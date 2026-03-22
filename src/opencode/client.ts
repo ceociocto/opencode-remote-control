@@ -1,19 +1,16 @@
 // OpenCode SDK client for remote control
 
+import '../patch_spawn.js'
 import { createRequire } from 'node:module'
 import { platform } from 'node:os'
-import { createOpencode } from '@opencode-ai/sdk'
 
 const require = createRequire(import.meta.url)
 const childProcess = require('node:child_process')
 
-// Patch undici's default HeadersTimeout (30s) to 30 minutes for long AI responses.
-// undici is Node.js's default fetch implementation and enforces headersTimeout on
-// every request. Without this, streaming/processing large AI responses timeout.
-let fetchPatched = false
+type OpenCodeInstance = Awaited<ReturnType<typeof import('@opencode-ai/sdk').createOpencode>>
+
 function patchFetchForUnlimitedTimeout() {
-  if (fetchPatched || typeof globalThis.fetch !== 'function') return
-  fetchPatched = true
+  if (typeof globalThis.fetch !== 'function') return
   const originalFetch = globalThis.fetch
   // @ts-ignore - internal API
   const originalDispatcher = originalFetch[Symbol.for('undici.globalDispatcher.1')]
@@ -32,8 +29,6 @@ function patchFetchForUnlimitedTimeout() {
   } as typeof globalThis.fetch
 }
 
-// Windows compatibility: patch child_process.spawn to use shell for 'opencode' command
-// This is needed because Windows requires shell: true to execute .cmd files
 if (platform() === 'win32') {
   const originalSpawn = childProcess.spawn
   // @ts-ignore - monkey patching for Windows compatibility
@@ -45,10 +40,6 @@ if (platform() === 'win32') {
   }
 }
 
-/**
- * Verify that OpenCode is installed and accessible
- * This helps catch issues early before the SDK tries to spawn the process
- */
 export async function verifyOpenCodeInstalled(): Promise<{ ok: boolean; error?: string }> {
   return new Promise((resolve) => {
     const isWindows = platform() === 'win32'
@@ -88,21 +79,20 @@ export async function verifyOpenCodeInstalled(): Promise<{ ok: boolean; error?: 
 
 export interface OpenCodeSession {
   sessionId: string
-  client: Awaited<ReturnType<typeof createOpencode>>['client']
-  server: Awaited<ReturnType<typeof createOpencode>>['server']
+  client: OpenCodeInstance['client']
+  server: OpenCodeInstance['server']
   shareUrl?: string
 }
 
-let opencodeInstance: Awaited<ReturnType<typeof createOpencode>> | null = null
+let opencodeInstance: OpenCodeInstance | null = null
 let verificationDone = false
 
-export async function initOpenCode(): Promise<Awaited<ReturnType<typeof createOpencode>>> {
+export async function initOpenCode(): Promise<OpenCodeInstance> {
   patchFetchForUnlimitedTimeout()
   if (opencodeInstance) {
     return opencodeInstance
   }
 
-  // Verify OpenCode is installed (only once)
   if (!verificationDone) {
     verificationDone = true
     console.log('🔧 Verifying OpenCode installation...')
@@ -116,8 +106,9 @@ export async function initOpenCode(): Promise<Awaited<ReturnType<typeof createOp
 
   console.log('🚀 Starting OpenCode server...')
   try {
+    const { createOpencode } = await import('@opencode-ai/sdk')
     opencodeInstance = await createOpencode({
-      port: 0, // Don't start HTTP server
+      port: 0,
     })
     console.log('✅ OpenCode server ready')
   } catch (error) {
@@ -154,8 +145,6 @@ export async function createSession(
     const sessionId = createResult.data.id
     console.log(`✅ Created OpenCode session: ${sessionId}`)
 
-    // Note: Sharing is disabled by default for privacy
-    // Set SHARE_SESSIONS=true in .env to enable public sharing
     let shareUrl: string | undefined
     if (process.env.SHARE_SESSIONS === 'true') {
       const shareResult = await opencode.client.session.share({
@@ -201,7 +190,6 @@ export async function sendMessage(
 
     const response = result.data
 
-    // Build response text from parts
     const responseText =
       (response as any).info?.content ||
       (response as any).parts
@@ -254,12 +242,10 @@ export async function shareSession(
   }
 }
 
-// Get the global opencode instance
-export function getOpenCode(): Awaited<ReturnType<typeof createOpencode>> | null {
+export function getOpenCode(): OpenCodeInstance | null {
   return opencodeInstance
 }
 
-// Check if OpenCode is connected
 export async function checkConnection(): Promise<boolean> {
   try {
     const opencode = await initOpenCode()
