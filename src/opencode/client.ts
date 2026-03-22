@@ -4,6 +4,31 @@ import { spawn } from 'node:child_process'
 import { platform } from 'node:os'
 import { createOpencode } from '@opencode-ai/sdk'
 
+// Patch undici's default HeadersTimeout (30s) to 30 minutes for long AI responses.
+// undici is Node.js's default fetch implementation and enforces headersTimeout on
+// every request. Without this, streaming/processing large AI responses timeout.
+let fetchPatched = false
+function patchFetchForUnlimitedTimeout() {
+  if (fetchPatched || typeof globalThis.fetch !== 'function') return
+  fetchPatched = true
+  const originalFetch = globalThis.fetch
+  // @ts-ignore - internal API
+  const originalDispatcher = originalFetch[Symbol.for('undici.globalDispatcher.1')]
+  if (originalDispatcher) {
+    // @ts-ignore
+    originalDispatcher.headersTimeout = 30 * 60 * 1000
+    // @ts-ignore
+    originalDispatcher.bodyTimeout = 30 * 60 * 1000
+  }
+  globalThis.fetch = function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    if (init?.signal) {
+      const { signal: _signal, ...rest } = init
+      return originalFetch(input, rest)
+    }
+    return originalFetch(input, init)
+  } as typeof globalThis.fetch
+}
+
 // Windows compatibility: patch child_process.spawn to use shell for 'opencode' command
 // This is needed because Windows requires shell: true to execute .cmd files
 if (platform() === 'win32') {
@@ -69,6 +94,7 @@ let opencodeInstance: Awaited<ReturnType<typeof createOpencode>> | null = null
 let verificationDone = false
 
 export async function initOpenCode(): Promise<Awaited<ReturnType<typeof createOpencode>>> {
+  patchFetchForUnlimitedTimeout()
   if (opencodeInstance) {
     return opencodeInstance
   }

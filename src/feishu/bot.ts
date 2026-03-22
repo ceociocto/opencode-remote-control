@@ -1,11 +1,11 @@
 // Feishu bot implementation for OpenCode Remote Control
+// Uses WebSocket long connection mode - no tunnel/ngrok required!
 
-import express, { type Request, type Response } from 'express'
 import * as lark from '@larksuiteoapi/node-sdk'
 import type { Config, MessageContext } from '../core/types.js'
 import { initSessionManager, getOrCreateSession } from '../core/session.js'
 import { splitMessage } from '../core/notifications.js'
-import type { BotAdapter } from '../core/handler-common.js'
+import type { BotAdapter } from '../core/types.js'
 import { EMOJI } from '../core/types.js'
 import {
   initOpenCode,
@@ -16,6 +16,7 @@ import {
 } from '../opencode/client.js'
 
 let feishuClient: lark.Client | null = null
+let wsClient: lark.WSClient | null = null
 let config: Config | null = null
 let openCodeSessions: Map<string, OpenCodeSession> | null = null
 
@@ -53,9 +54,24 @@ function createFeishuAdapter(client: lark.Client): BotAdapter {
       }
     },
 
-    async sendTypingIndicator(threadId: string): Promise<void> {
-      // Feishu doesn't have typing indicator
-      // Could optionally send a "thinking..." message, but we'll skip for now
+    async sendTypingIndicator(threadId: string): Promise<string> {
+      // Feishu doesn't have native typing indicator API
+      // We send a "thinking" message that will be deleted later
+      const chatId = threadId.replace('feishu:', '')
+      try {
+        const result = await client.im.message.create({
+          params: { receive_id_type: 'chat_id' },
+          data: {
+            receive_id: chatId,
+            msg_type: 'text',
+            content: JSON.stringify({ text: '⏳ 思考中...' }),
+          },
+        })
+        return result.data?.message_id || ''
+      } catch (error) {
+        console.error('Failed to send typing indicator:', error)
+        return ''
+      }
     },
 
     async deleteMessage(threadId: string, messageId: string): Promise<void> {
@@ -221,14 +237,19 @@ Cannot connect to OpenCode server.
     return
   }
 
-  // Send typing indicator (Feishu style)
-  const typingMsg = await adapter.reply(ctx.threadId, '⏳')
+  // Send typing indicator
+  console.log('⏳ Sending typing indicator...')
+  const typingMsgId = await adapter.sendTypingIndicator(ctx.threadId)
 
   // Get or create OpenCode session
   let openCodeSession = openCodeSessions?.get(ctx.threadId)
   if (!openCodeSession) {
     const newSession = await createSession(ctx.threadId, `Feishu chat ${ctx.threadId}`)
     if (!newSession) {
+      // Delete typing indicator before error message
+      if (typingMsgId && adapter.deleteMessage) {
+        await adapter.deleteMessage(ctx.threadId, typingMsgId)
+      }
       await adapter.reply(ctx.threadId, '❌ Failed to create OpenCode session')
       return
     }
@@ -244,11 +265,13 @@ Cannot connect to OpenCode server.
   }
 
   try {
+    console.log('🤖 Sending to OpenCode...')
     const response = await sendMessage(openCodeSession, text)
+    console.log('✅ Got response from OpenCode')
 
     // Delete typing indicator
-    if (adapter.deleteMessage && typingMsg) {
-      await adapter.deleteMessage(ctx.threadId, typingMsg)
+    if (typingMsgId && adapter.deleteMessage) {
+      await adapter.deleteMessage(ctx.threadId, typingMsgId)
     }
 
     // Split long messages
@@ -258,6 +281,10 @@ Cannot connect to OpenCode server.
     }
   } catch (error) {
     console.error('Error sending message:', error)
+    // Delete typing indicator on error too
+    if (typingMsgId && adapter.deleteMessage) {
+      await adapter.deleteMessage(ctx.threadId, typingMsgId)
+    }
     await adapter.reply(ctx.threadId, `❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
@@ -284,15 +311,16 @@ function checkRateLimit(chatId: string): boolean {
   return true
 }
 
-// Start Feishu bot
+// Start Feishu bot using WebSocket long connection mode
+// No tunnel/ngrok required - just needs internet access!
 export async function startFeishuBot(botConfig: Config) {
   config = botConfig
 
   if (!config.feishuAppId || !config.feishuAppSecret) {
-    throw new Error('Feishu credentials not configured')
+    throw new Error('Feishu credentials not configured. Run: opencode-remote config')
   }
 
-  // Initialize Feishu client
+  // Initialize Feishu client for sending messages
   feishuClient = new lark.Client({
     appId: config.feishuAppId,
     appSecret: config.feishuAppSecret,
@@ -316,118 +344,127 @@ export async function startFeishuBot(botConfig: Config) {
     console.log('Make sure OpenCode is running')
   }
 
-  // Create adapter
+  // Create adapter for sending messages
   const adapter = createFeishuAdapter(feishuClient)
 
-  // Create Express server for webhook
-  const app = express()
-  app.use(express.json())
+  // Create WebSocket client for long connection
+  wsClient = new lark.WSClient({
+    appId: config.feishuAppId,
+    appSecret: config.feishuAppSecret,
+    // For international Lark, add: domain: lark.Domain.Lark
+  })
 
-  const webhookPath = '/feishu/webhook'
-  const port = config.feishuWebhookPort || 3001
-
-  // Webhook endpoint for Feishu events
-  app.post(webhookPath, async (req: Request, res: Response) => {
-    const event = req.body
-
-    // Handle URL verification challenge (required for Feishu bot setup)
-    if (event.type === 'url_verification') {
-      res.json({ challenge: event.challenge })
-      return
-    }
-
-    // Validate event structure
-    if (!event.header?.event_type) {
-      res.status(400).json({ code: -1, msg: 'Invalid event structure' })
-      return
-    }
-
-    // Handle message events
-    if (event.header.event_type === 'im.message.receive_v1') {
+  // Create event dispatcher for handling incoming messages
+  const eventDispatcher = new lark.EventDispatcher({}).register({
+    // Handle incoming messages
+    'im.message.receive_v1': async (data: any) => {
+      console.log('📩 Received message event:', JSON.stringify(data, null, 2))
       try {
         // Validate event data
-        if (!event.event?.message) {
-          res.status(400).json({ code: -1, msg: 'Missing message data' })
-          return
+        if (!data?.message) {
+          console.warn('Received message event without message data')
+          return { code: 0 }
         }
 
-        const ctx = feishuEventToContext(event.event)
-        const chatId = event.event.message.chat_id
+        const chatId = data.message.chat_id
+        console.log(`💬 Message from chat: ${chatId}`)
 
         // Rate limiting
         if (!checkRateLimit(chatId)) {
           console.warn(`Rate limit exceeded for chat: ${chatId}`)
-          res.status(429).json({ code: -1, msg: 'Rate limit exceeded' })
-          return
+          return { code: 0 }
         }
 
         // Parse message content
         let text = ''
         try {
-          const content = JSON.parse(event.event.message.content)
+          const content = JSON.parse(data.message.content)
           text = content.text || ''
+          console.log(`📝 Message text: ${text}`)
         } catch {
           // If not JSON, try to use raw content
-          text = event.event.message.content || ''
+          text = data.message.content || ''
+          console.log(`📝 Raw message content: ${text}`)
         }
 
         // Skip empty messages
         if (!text.trim()) {
-          res.json({ code: 0 })
-          return
+          console.log('⏭️ Skipping empty message')
+          return { code: 0 }
         }
 
-        // Handle the message
-        await handleMessage(adapter, ctx, text)
-        res.json({ code: 0 })
+        // Create message context
+        const ctx = feishuEventToContext(data)
+
+        // Handle the message (async, don't wait)
+        handleMessage(adapter, ctx, text).catch(error => {
+          console.error('Error handling Feishu message:', error)
+        })
+
+        return { code: 0 }
       } catch (error) {
-        console.error('Feishu webhook error:', error)
-        res.status(500).json({ code: -1, msg: 'Internal error' })
+        console.error('Feishu event handler error:', error)
+        return { code: 0 }
       }
-      return
-    }
-
-    // Unknown event type - acknowledge but ignore
-    console.log(`Received Feishu event: ${event.header.event_type}`)
-    res.json({ code: 0 })
+    },
   })
 
-  // Health check endpoint
-  app.get('/health', (_req: Request, res: Response) => {
-    res.json({ status: 'ok', platform: 'feishu' })
-  })
+  // Start WebSocket long connection
+  console.log('🔗 Starting Feishu WebSocket long connection...')
+  console.log('')
+  console.log('✨ Long connection mode - NO tunnel/ngrok required!')
+  console.log('   Just make sure your computer can access the internet.')
+  console.log('')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('  📋 Configuration Checklist')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('')
+  console.log('  Step 1: Add Permissions (权限管理 → API权限)')
+  console.log('  ────────────────────────────────────────')
+  console.log('  Click "批量添加" (Batch Add) and paste this JSON:')
+  console.log('')
+  console.log('  ┌────────────────────────────────────────────────────┐')
+  console.log('  │ {                                                  │')
+  console.log('  │   "im:message",                                   │')
+  console.log('  │   "im:message:send_as_bot",                       │')
+  console.log('  │   "im:message:receive_as_bot"                     │')
+  console.log('  │ }                                                  │')
+  console.log('  └────────────────────────────────────────────────────┘')
+  console.log('')
+  console.log('  Step 2: Enable Robot (应用能力 → 机器人)')
+  console.log('  ────────────────────────────────────────')
+  console.log('  - Enable "启用机器人"')
+  console.log('  - Enable "机器人可主动发送消息给用户"')
+  console.log('  - Enable "用户可与机器人进行单聊"')
+  console.log('')
+  console.log('  Step 3: Event Subscription (事件订阅)')
+  console.log('  ────────────────────────────────────────')
+  console.log('  ⚠️  MUST start this bot BEFORE saving event config!')
+  console.log('  - Select "使用长连接接收事件"')
+  console.log('  - Add event: im.message.receive_v1')
+  console.log('  - Then click Save')
+  console.log('')
+  console.log('  Step 4: Publish App (版本管理与发布)')
+  console.log('  ────────────────────────────────────────')
+  console.log('  - Create version → Request publishing → Publish')
+  console.log('')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('  🔍 Debug: Send a message to your bot in Feishu!')
+  console.log('     You should see: 📩 Received message event')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('')
 
-  // Start server
-  return new Promise<void>((resolve, reject) => {
-    const server = app.listen(port, () => {
-      console.log(`🚀 Feishu webhook listening on port ${port}`)
-      console.log(`📡 Webhook URL: http://localhost:${port}${webhookPath}`)
-      console.log('\n📝 Setup instructions:')
-      console.log('  1. Use ngrok or cloudflared to expose this endpoint:')
-      console.log('     ngrok http ' + port)
-      console.log('  2. Configure the webhook URL in Feishu admin console')
-      console.log('  3. Subscribe to "im.message.receive_v1" event')
-    })
+  // The start() method will block the main thread
+  // Handle graceful shutdown
+  const shutdown = () => {
+    console.log('\n🛑 Shutting down Feishu bot...')
+    // WSClient doesn't have a stop method, just let the process exit
+    process.exit(0)
+  }
 
-    server.on('error', (err) => {
-      reject(err)
-    })
+  process.once('SIGINT', shutdown)
+  process.once('SIGTERM', shutdown)
 
-    // Handle graceful shutdown
-    process.once('SIGINT', () => {
-      console.log('\n🛑 Shutting down Feishu bot...')
-      server.close(() => {
-        console.log('Feishu bot stopped')
-        resolve()
-      })
-    })
-
-    process.once('SIGTERM', () => {
-      console.log('\n🛑 Shutting down Feishu bot...')
-      server.close(() => {
-        console.log('Feishu bot stopped')
-        resolve()
-      })
-    })
-  })
+  // Start the WebSocket client - this will block until process is killed
+  await wsClient.start({ eventDispatcher })
 }

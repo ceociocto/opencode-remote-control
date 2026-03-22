@@ -21,7 +21,7 @@
 - [OpenCode](https://github.com/opencode-ai/opencode) installed and accessible in PATH
 - Telegram account (for Telegram bot)
 - Feishu account (for Feishu bot)
-- ngrok or cloudflared (for Feishu webhook)
+- **No** ngrok or cloudflared required (Feishu uses WebSocket long connection)
 
 ### Verify OpenCode Installation
 
@@ -68,7 +68,56 @@ Token is saved to `~/.opencode-remote/.env`
 
 ### Feishu Setup
 
-For detailed Feishu setup instructions, see [Feishu Setup Guide](./docs/FEISHU_SETUP_EN.md) or [飞书配置指南](./docs/FEISHU_SETUP.md).
+Feishu uses **WebSocket Long Connection Mode** - no public IP or tunnel required!
+
+#### Step 1: Create Feishu App
+
+1. Visit [Feishu Open Platform](https://open.feishu.cn/) and login
+2. Go to "Developer Console" → "Create Enterprise App"
+3. Get **App ID** and **App Secret** from "Credentials & Basic Info"
+
+#### Step 2: Configure Permissions
+
+Go to "Permission Management" → "API Permissions" and enable:
+
+| Permission | ID |
+|------------|---|
+| Get and send messages | `im:message` |
+| Send messages as bot | `im:message:send_as_bot` |
+| Receive bot messages | `im:message:receive_as_bot` |
+
+#### Step 3: Enable Bot
+
+1. Go to "App Capabilities" → "Bot"
+2. Enable "Enable Bot"
+3. Enable "Bot can proactively send messages to users"
+4. Enable "Users can have private chats with bot"
+
+#### Step 4: Configure Event Subscription (Critical!)
+
+1. Go to "Event Subscription" page
+2. **Subscription Method**: Select "**Use long connection to receive events**"
+   > ⚠️ Important: Choose "Use long connection to receive events", NOT "Send events to developer server"
+3. Click "Add Event" and select:
+   - `im.message.receive_v1` - Receive messages
+4. Save configuration
+
+#### Step 5: Run Config Command
+
+```bash
+opencode-remote config
+```
+
+Select "Feishu" and enter your App ID and App Secret.
+
+#### Step 6: Publish App
+
+1. Go to "Version Management & Publishing"
+2. Create version → Request publishing → Publish
+
+---
+
+For detailed setup instructions, see [Feishu Setup Guide](./docs/FEISHU_SETUP_EN.md) or [飞书配置指南](./docs/FEISHU_SETUP.md).
 
 ## Start Service
 
@@ -145,18 +194,18 @@ Both Telegram and Feishu support the same commands:
 
 The Telegram bot uses **Polling Mode** to fetch messages from Telegram servers, requiring no tunnel or public IP configuration.
 
-### Feishu (Webhook Mode)
+### Feishu (Long Connection Mode)
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Feishu     │───▶│  Feishu     │───▶│   Webhook   │
-│  Client     │    │  Server     │    │  (ngrok)    │
+│  Feishu     │───▶│  Feishu     │───▶│  WebSocket  │
+│  Client     │    │  Server     │    │ (Long Conn) │
 └─────────────┘    └─────────────┘    └──────┬──────┘
                                              │
                                              ▼
                                       ┌─────────────┐
                                       │ Feishu Bot  │
-                                      │  (port 3001)│
+                                      │  (Local)    │
                                       └──────┬──────┘
                                              │
                                              ▼
@@ -166,7 +215,7 @@ The Telegram bot uses **Polling Mode** to fetch messages from Telegram servers, 
                                       └─────────────┘
 ```
 
-The Feishu bot uses **Webhook Mode** and requires a tunnel (ngrok/cloudflared) to receive messages.
+The Feishu bot uses **WebSocket Long Connection Mode** - no public IP or tunnel (ngrok/cloudflared) required!
 
 ## Contributing
 

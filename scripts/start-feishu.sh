@@ -14,9 +14,8 @@ if [ ! -f ".env" ]; then
     echo ""
     echo "  FEISHU_APP_ID=cli_xxxxxxxxxxxxxxxx"
     echo "  FEISHU_APP_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-    echo "  FEISHU_WEBHOOK_PORT=3001"
     echo ""
-    echo "或运行: opencode-remote config-feishu"
+    echo "或运行: opencode-remote config"
     exit 1
 fi
 
@@ -33,12 +32,9 @@ if [ -z "$FEISHU_APP_ID" ] || [ -z "$FEISHU_APP_SECRET" ]; then
     exit 1
 fi
 
-# 设置默认端口
-PORT=${FEISHU_WEBHOOK_PORT:-3001}
-
 echo "📋 配置信息："
 echo "   App ID: ${FEISHU_APP_ID:0:10}..."
-echo "   Webhook 端口: $PORT"
+echo "   模式: WebSocket 长连接（无需内网穿透）"
 echo ""
 
 # 构建

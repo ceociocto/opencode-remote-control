@@ -1,16 +1,9 @@
 // Shared handler logic for OpenCode Remote Control
 
-import type { Session, MessageContext, ApprovalRequest, FileChange } from './types.js'
+import type { Session, MessageContext, ApprovalRequest, FileChange, BotAdapter } from './types.js'
 import { getOrCreateSession } from './session.js'
 import { createApprovalRequest, waitForApproval, formatApprovalMessage } from './approval.js'
 import { TEMPLATES, splitMessage } from './notifications.js'
-
-export interface BotAdapter {
-  reply(threadId: string, text: string): Promise<string | void>
-  sendTypingIndicator(threadId: string): Promise<void>
-  deleteMessage?(threadId: string, messageId: string): Promise<void>
-  onApprovalNeeded?: (threadId: string, message: string) => Promise<void>
-}
 
 export function createHandler(deps: BotAdapter) {
   return {

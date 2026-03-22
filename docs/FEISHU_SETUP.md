@@ -4,6 +4,8 @@
 
 本文档介绍如何配置飞书机器人，实现通过飞书远程控制 OpenCode。
 
+**✨ 特点：使用 WebSocket 长连接模式，无需公网 IP、无需内网穿透（ngrok/cloudflared）！**
+
 ## 第一步：创建飞书应用
 
 ### 1.1 访问开放平台
@@ -27,29 +29,29 @@
 
 ## 第二步：配置权限
 
-### 2.1 添加权限
+### 2.1 批量添加权限（推荐）
 
-在「权限管理」→「API权限」中，搜索并开通以下权限：
+在「权限管理」→「API权限」中
+点击「**批量添加**」
+粘贴以下 JSON：
+
+```json
+[
+  "im:message",
+  "im:message:send_as_bot",
+  "im:message:receive_as_bot"
+]
+```
+
+> 💡 **复制上面的 JSON → 飞书后台 → 权限管理 → API权限 → 批量添加 → 粘贴 → 确认**
+
+### 2.2 或手动添加权限
 
 | 权限名称 | 权限标识 | 用途 |
 |---------|---------|------|
 | 获取与发送单聊、群组消息 | `im:message` | 收发消息 |
 | 以应用身份发消息 | `im:message:send_as_bot` | 机器人回复 |
 | 接收群聊中@机器人消息 | `im:message:receive_as_bot` | 群聊触发 |
-
-### 2.2 权限 JSON 配置
-
-如果需要批量配置，可使用以下 JSON（在权限管理页面导入）：
-
-```json
-{
-  "permissions": [
-    "im:message",
-    "im:message:send_as_bot",
-    "im:message:receive_as_bot"
-  ]
-}
-```
 
 ## 第三步：配置机器人
 
@@ -73,48 +75,9 @@
 - ✅ 启用「机器人可主动发送消息给用户」
 - ✅ 启用「用户可与机器人进行单聊」
 
-## 第四步：配置事件订阅
+## 第四步：配置环境变量
 
-### 4.1 启动本地服务
-
-```bash
-# 方式1：使用启动脚本
-./scripts/start-feishu.sh
-
-# 方式2：手动启动
-bun run build && node dist/cli.js feishu
-```
-
-### 4.2 暴露 Webhook
-
-使用 ngrok 或 cloudflared 暴露本地服务：
-
-```bash
-# 使用 ngrok
-ngrok http 3001
-
-# 使用 cloudflared
-cloudflared tunnel --url http://localhost:3001
-```
-
-记录生成的公网 URL，例如：`https://abc123.ngrok-free.app`
-
-### 4.3 配置事件订阅
-
-1. 进入「事件订阅」页面
-2. 配置「请求网址」：
-   ```
-   https://abc123.ngrok-free.app/feishu/webhook
-   ```
-3. 点击「添加事件」，选择：
-   - `im.message.receive_v1` - 接收消息
-4. 保存配置
-
-> **注意**：保存时会验证 URL 可达性，确保本地服务正在运行。
-
-## 第五步：配置环境变量
-
-### 5.1 创建 .env 文件
+### 4.1 创建 .env 文件
 
 在项目根目录创建 `.env` 文件：
 
@@ -123,57 +86,102 @@ cloudflared tunnel --url http://localhost:3001
 FEISHU_APP_ID=cli_xxxxxxxxxxxxxxxx
 FEISHU_APP_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# Webhook 端口（可选，默认 3001）
-FEISHU_WEBHOOK_PORT=3001
-
 # OpenCode 配置
 OPENCODE_SERVER_URL=http://localhost:3000
-
-# 可选：加密配置（提高安全性）
-# FEISHU_ENCRYPT_KEY=your_encrypt_key
-# FEISHU_VERIFICATION_TOKEN=your_verification_token
 ```
 
-### 5.2 或使用 CLI 配置
+### 4.2 或使用 CLI 配置
 
 ```bash
 opencode-remote config
 ```
 
-选择「飞书」，按提示输入 App ID 和 App Secret。
+选择「飞书」
+按提示输入 App ID 和 App Secret。
 
-## 第六步：发布应用
+## 第五步：启动本地机器人（重要！）
 
-### 6.1 创建版本
+> ⚠️ **关键步骤**：必须**先启动本地机器人建立长连接**
+才能在飞书后台成功保存事件订阅配置！
+
+```bash
+opencode-remote feishu
+```
+
+启动成功后会显示：
+
+```
+🔧 Initializing OpenCode...
+✅ OpenCode ready
+🔗 Starting Feishu WebSocket long connection...
+
+✨ Long connection mode - NO tunnel/ngrok required!
+   Just make sure your computer can access the internet.
+
+✅ ws client ready  ← 看到这个表示连接成功
+```
+
+## 第六步：配置事件订阅（长连接模式）
+
+> ⚠️ **确保本地机器人正在运行**
+然后再进行以下配置！
+
+### 6.1 启用长连接模式
+
+1. 进入「事件订阅」页面
+2. **订阅方式**：选择「**使用长连接接收事件**」
+3. 点击「添加事件」
+选择：
+   - `im.message.receive_v1` - 接收消息
+4. 保存配置
+
+> **如果保存时提示「未检测到应用连接信息」**：
+> 说明本地机器人未运行。请先运行 `opencode-remote feishu`
+
+### 6.2 长连接模式优势
+
+- ✅ **无需公网 IP** - 本地环境即可接收回调
+- ✅ **无需内网穿透** - 飞书主动连接你的设备
+- ✅ **无需域名** - 省去域名配置和备案
+- ✅ **实时性强** - 消息延迟从分钟级降至毫秒级
+- ✅ **安全传输** - SDK 内置加密和鉴权机制
+
+## 第七步：发布应用
+
+### 7.1 创建版本
 
 1. 进入「版本管理与发布」
 2. 点击「创建版本」
 3. 填写版本信息：
    - **版本号**：1.0.0
-   - **更新说明**：首次发布，支持远程控制 OpenCode
+   - **更新说明**：首次发布
+支持远程控制 OpenCode
 
-### 6.2 申请发布
+### 7.2 申请发布
 
 1. 点击「申请发布」
 2. 等待审核（企业自建应用通常秒过）
 3. 审核通过后点击「发布」
 
-### 6.3 添加到企业
+### 7.3 添加到企业
 
-1. 发布后，在企业后台启用应用
+1. 发布后
+在企业后台启用应用
 2. 或直接在飞书中搜索机器人名称
 
-## 第七步：测试验证
+## 第八步：测试验证
 
-### 7.1 在飞书中测试
+### 8.1 在飞书中测试
 
-打开飞书，搜索你的机器人，发送以下消息：
+打开飞书
+搜索你的机器人，发送以下消息：
 
 ```
 /start
 ```
 
 预期回复：
+
 ```
 🚀 OpenCode Remote Control ready
 
@@ -185,13 +193,14 @@ Commands:
 ...
 ```
 
-### 7.2 测试 OpenCode 连接
+### 8.2 测试 OpenCode 连接
 
 ```
 /status
 ```
 
 预期回复：
+
 ```
 ✅ Connected
 
@@ -200,29 +209,71 @@ Commands:
 📝 Pending approvals: 0
 ```
 
-### 7.3 发送编程任务
+---
 
-```
-创建一个 hello.ts 文件，输出 Hello World
+## 📋 排查清单
+
+如果机器人没有响应
+请按以下顺序检查：
+
+| # | 检查项 | 位置 | 如何检查 |
+|---|--------|------|----------|
+| 1 | App ID/Secret 已配置 | `.env` 文件或 `opencode-remote config` | 检查文件内容或重新配置 |
+| 2 | 权限已添加 | 权限管理 → API权限 | 搜索 `im:message` |
+| 3 | 机器人已启用 | 应用能力 → 机器人 | 「启用机器人」开关打开 |
+| 4 | **使用长连接模式** | 事件订阅 → 订阅方式 | 选择「使用长连接接收事件」 |
+| 5 | **事件：** `im.message.receive_v1` | 事件订阅 → 事件列表 | 事件列表中有此项 |
+| 6 | **应用已发布** | 版本管理与发布 | 状态为「已发布」 |
+| 7 | **机器人运行中** | 终端 | 显示 `ws client ready` |
+| 8 | **发消息有日志** | 终端 | 显示 `📩 Received message event` |
+
+### 常见问题
+
+#### Q: 保存时提示「未检测到应用连接信息」
+
+**原因**：本地机器人未运行
+
+**解决**：
+1. 运行 `opencode-remote feishu`
+2. 等待看到 `ws client ready`
+3. 再去飞书后台保存配置
+
+#### Q: 发送消息无任何日志
+
+**原因**：事件未正确订阅
+
+**解决**：
+1. 检查事件订阅方式是否为「使用长连接接收事件」
+2. 检查事件列表中是否有 `im.message.receive_v1`
+
+#### Q: 权限不足
+
+**原因**：未添加必要权限
+
+**解决**：使用批量添加功能
+导入权限 JSON：
+```json
+[
+  "im:message",
+  "im:message:send_as_bot",
+  "im:message:receive_as_bot"
+]
 ```
 
-预期行为：
-1. 机器人回复 `⏳ Thinking...`
-2. OpenCode 处理请求
-3. 返回处理结果
+---
 
 ## 架构图
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  飞书客户端  │───▶│  飞书服务器  │───▶│   Webhook   │
-└─────────────┘    └─────────────┘    │  (ngrok)    │
-                                      └──────┬──────┘
+│  飞书客户端  │───▶│  飞书服务器  │───▶│  WebSocket  │
+│             │    │             │    │  (长连接)   │
+└─────────────┘    └─────────────┘    └──────┬──────┘
                                              │
                                              ▼
                                       ┌─────────────┐
                                       │ Feishu Bot  │
-                                      │  (端口 3001) │
+                                      │  (本地运行)  │
                                       └──────┬──────┘
                                              │
                                              ▼
@@ -231,57 +282,6 @@ Commands:
                                       │   SDK       │
                                       └─────────────┘
 ```
-
-## 常见问题
-
-### Q: URL 验证失败
-
-**原因**：飞书无法访问 webhook URL
-
-**解决方案**：
-1. 确保 ngrok/cloudflared 正在运行
-2. 检查本地服务是否启动（端口 3001）
-3. 确认 webhook 路径是 `/feishu/webhook`
-
-### Q: 收不到消息
-
-**原因**：权限或事件订阅未正确配置
-
-**解决方案**：
-1. 检查是否添加了 `im:message:receive_as_bot` 权限
-2. 确认订阅了 `im.message.receive_v1` 事件
-3. 检查应用是否已发布
-
-### Q: OpenCode 离线
-
-**原因**：OpenCode 未运行或 SDK 未正确初始化
-
-**解决方案**：
-1. 确保 OpenCode 正在运行
-2. 检查 `OPENCODE_SERVER_URL` 配置
-3. 查看日志是否有错误信息
-
-### Q: 消息发送失败
-
-**原因**：App ID 或 App Secret 配置错误
-
-**解决方案**：
-1. 重新检查飞书开放平台的凭证
-2. 确认 `.env` 文件中的配置正确
-3. 重启机器人服务
-
-## 安全建议
-
-1. **使用加密**：配置 `FEISHU_ENCRYPT_KEY` 和 `FEISHU_VERIFICATION_TOKEN`
-2. **限制 IP**：在飞书后台配置 IP 白名单
-3. **定期轮换**：定期更换 App Secret
-4. **监控日志**：关注异常访问日志
-
-## 下一步
-
-- 配置 [Telegram 机器人](./TELEGRAM_SETUP.md)（可选）
-- 查看 [API 文档](./API.md)
-- 加入社区讨论
 
 ---
 

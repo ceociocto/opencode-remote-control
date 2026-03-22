@@ -126,7 +126,24 @@ async function promptToken(): Promise<string> {
 }
 
 async function promptFeishuConfig(): Promise<{ appId: string; appSecret: string }> {
-  console.log('\n📝 Step 1: Create Feishu App')
+  // Read existing config to show as defaults
+  let existingAppId = ''
+  let existingAppSecret = ''
+
+  if (existsSync(CONFIG_FILE)) {
+    const content = readFileSync(CONFIG_FILE, 'utf-8')
+    const appIdMatch = content.match(/FEISHU_APP_ID=(.+)/)
+    if (appIdMatch) existingAppId = appIdMatch[1].trim()
+    const appSecretMatch = content.match(/FEISHU_APP_SECRET=(.+)/)
+    if (appSecretMatch) existingAppSecret = appSecretMatch[1].trim()
+  }
+
+  console.log('')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('  📁 Config file: ' + CONFIG_FILE)
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('')
+  console.log('📝 Step 1: Create Feishu App')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('')
   console.log('  1. Go to https://open.feishu.cn/app')
@@ -134,9 +151,20 @@ async function promptFeishuConfig(): Promise<{ appId: string; appSecret: string 
   console.log('  3. Fill in app name and description')
   console.log('  4. Go to "凭证与基础信息" (Credentials) page')
   console.log('')
+  console.log('⚠️  Important: In "事件订阅" (Event Subscription),')
+  console.log('   select "使用长连接接收事件" (Use long connection to receive events)')
+  console.log('   This allows the bot to work without ngrok/cloudflared!')
+  console.log('')
 
-  const promptInput = async (promptText: string): Promise<string> => {
-    process.stdout.write(promptText)
+  const promptInput = async (promptText: string, defaultValue: string): Promise<string> => {
+    if (defaultValue) {
+      const masked = defaultValue.length > 8
+        ? defaultValue.slice(0, 4) + '****' + defaultValue.slice(-4)
+        : '****'
+      process.stdout.write(`${promptText} [current: ${masked}]: `)
+    } else {
+      process.stdout.write(promptText)
+    }
 
     return new Promise<string>((resolve) => {
       process.stdin.resume()
@@ -157,22 +185,24 @@ async function promptFeishuConfig(): Promise<{ appId: string; appSecret: string 
 
       process.stdin.once('data', (chunk) => {
         cleanup()
-        resolve(chunk.toString().trim())
+        const input = chunk.toString().trim()
+        // If user presses enter without input, use default value
+        resolve(input || defaultValue)
       })
     })
   }
 
-  const appId = await promptInput('Enter your App ID: ')
+  const appId = await promptInput('Enter your App ID', existingAppId)
 
   if (!appId) {
-    console.log('\nCancelled')
+    console.log('\n❌ App ID is required. Press Ctrl+C to cancel.')
     process.exit(0)
   }
 
-  const appSecret = await promptInput('Enter your App Secret: ')
+  const appSecret = await promptInput('Enter your App Secret', existingAppSecret)
 
   if (!appSecret) {
-    console.log('\nCancelled')
+    console.log('\n❌ App Secret is required. Press Ctrl+C to cancel.')
     process.exit(0)
   }
 
@@ -185,51 +215,68 @@ function showFeishuSetupGuide(): void {
   console.log('  📋 Step 2: Configure App Permissions')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('')
-  console.log('  Go to "权限管理" (Permission Management) page')
-  console.log('  Search and enable these permissions:')
+  console.log('  Go to: 权限管理 → API权限')
+  console.log('')
+  console.log('  Click "批量添加" (Batch Add) and paste this JSON:')
   console.log('')
   console.log('  ┌────────────────────────────────────────────────────┐')
-  console.log('  │ Permission                              │ Scope    │')
-  console.log('  ├────────────────────────────────────────────────────┤')
-  console.log('  │ im:message                      获取与发送消息  │')
-  console.log('  │ im:message:send_as_bot          以应用身份发消息 │')
-  console.log('  │ im:message:receive_as_bot       接收机器人消息   │')
+  console.log('  │                                                    │')
+  console.log('  │   {                                                │')
+  console.log('  │     "im:message",                                  │')
+  console.log('  │     "im:message:send_as_bot",                      │')
+  console.log('  │     "im:message:receive_as_bot"                    │')
+  console.log('  │   }                                                │')
+  console.log('  │                                                    │')
   console.log('  └────────────────────────────────────────────────────┘')
   console.log('')
-  console.log('  💡 TIP: Copy the JSON below and use "批量添加" feature:')
-  console.log('')
-  console.log('  ┌────────────────────────────────────────────────────┐')
-  console.log('  │ [')
-  console.log('  │   "im:message",')
-  console.log('  │   "im:message:send_as_bot",')
-  console.log('  │   "im:message:receive_as_bot"')
-  console.log('  │ ]')
-  console.log('  └────────────────────────────────────────────────────┘')
+  console.log('  📋 Or add manually:')
+  console.log('     • im:message              - 获取与发送消息')
+  console.log('     • im:message:send_as_bot  - 以应用身份发消息')
+  console.log('     • im:message:receive_as_bot - 接收机器人消息')
   console.log('')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('  🤖 Step 3: Enable Robot Capability')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('')
-  console.log('  1. Go to "应用能力" (App Capabilities) → "机器人" (Robot)')
-  console.log('  2. Click "启用机器人" (Enable Robot)')
-  console.log('  3. Set robot name and description')
+  console.log('  Go to: 应用能力 → 机器人')
+  console.log('')
+  console.log('  Enable these options:')
+  console.log('     ☑️  启用机器人')
+  console.log('     ☑️  机器人可主动发送消息给用户')
+  console.log('     ☑️  用户可与机器人进行单聊')
   console.log('')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('  🔗 Step 4: Configure Event Subscription')
+  console.log('  🚀 Step 4: Start the Bot FIRST! (CRITICAL)')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('')
-  console.log('  1. Start the bot locally:')
-  console.log('     $ opencode-remote feishu')
+  console.log('  ⚠️  You MUST start the bot BEFORE configuring event subscription!')
   console.log('')
-  console.log('  2. Expose webhook with ngrok/cloudflared:')
-  console.log('     $ ngrok http 3001')
+  console.log('  Run in another terminal:')
   console.log('')
-  console.log('  3. Go to "事件订阅" (Event Subscription) page')
-  console.log('  4. Set Request URL: https://your-ngrok-url/feishu/webhook')
-  console.log('  5. Add event: im.message.receive_v1')
+  console.log('       opencode-remote feishu')
+  console.log('')
+  console.log('  Wait for: "ws client ready" (WebSocket connected)')
+  console.log('')
+  console.log('  ✨ Long Connection Mode = NO ngrok/cloudflared needed!')
   console.log('')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('  📤 Step 5: Publish App')
+  console.log('  🔗 Step 5: Configure Event Subscription')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('')
+  console.log('  (Make sure the bot is running! If not, start it first)')
+  console.log('')
+  console.log('  1. Go to "事件订阅" (Event Subscription) page')
+  console.log('  2. 订阅方式: 选择 "使用长连接接收事件"')
+  console.log('     (NOT "将事件发送至开发者服务器"!)')
+  console.log('  3. Click "添加事件" and select:')
+  console.log('     - im.message.receive_v1 (接收消息)')
+  console.log('  4. Save configuration')
+  console.log('')
+  console.log('  ❌ If you see "未检测到应用连接信息":')
+  console.log('     → The bot is not running. Start it first!')
+  console.log('')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('  📤 Step 6: Publish App')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('')
   console.log('  1. Go to "版本管理与发布" (Version & Publish)')
