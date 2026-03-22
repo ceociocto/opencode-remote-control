@@ -26,11 +26,17 @@ pnpm install -g opencode-remote-control
 bun install -g opencode-remote-control
 ```
 
-## Quick Start
+## Configuration
+
+Run the config command to set up your preferred channel:
+
+```bash
+opencode-remote config
+```
+
+Select **Telegram** or **Feishu** and follow the interactive guide.
 
 ### Telegram Setup
-
-On first run, you'll be prompted for a Telegram bot token:
 
 1. Open Telegram, search **@BotFather**
 2. Send `/newbot` and follow instructions
@@ -40,13 +46,7 @@ Token is saved to `~/.opencode-remote/.env`
 
 ### Feishu Setup
 
-Run the config command for Feishu:
-
-```bash
-opencode-remote config-feishu
-```
-
-Follow the interactive guide to configure your Feishu bot. For detailed setup instructions, see [Feishu Setup Guide](./docs/FEISHU_SETUP_EN.md) or [飞书配置指南](./docs/FEISHU_SETUP.md).
+For detailed Feishu setup instructions, see [Feishu Setup Guide](./docs/FEISHU_SETUP_EN.md) or [飞书配置指南](./docs/FEISHU_SETUP.md).
 
 ## Usage
 
@@ -56,7 +56,6 @@ opencode-remote start        # Start all configured bots
 opencode-remote telegram     # Start Telegram bot only
 opencode-remote feishu       # Start Feishu bot only
 opencode-remote config       # Configure a channel (interactive)
-opencode-remote config-feishu # Configure Feishu directly
 opencode-remote help         # Show help
 ```
 

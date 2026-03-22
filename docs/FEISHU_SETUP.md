@@ -137,10 +137,10 @@ OPENCODE_SERVER_URL=http://localhost:3000
 ### 5.2 或使用 CLI 配置
 
 ```bash
-opencode-remote config-feishu
+opencode-remote config
 ```
 
-按提示输入 App ID 和 App Secret。
+选择「飞书」，按提示输入 App ID 和 App Secret。
 
 ## 第六步：发布应用
 

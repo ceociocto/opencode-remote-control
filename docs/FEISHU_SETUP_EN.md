@@ -135,10 +135,10 @@ OPENCODE_SERVER_URL=http://localhost:3000
 ### 5.2 Or Use CLI Configuration
 
 ```bash
-opencode-remote config-feishu
+opencode-remote config
 ```
 
-Follow the prompts to enter App ID and App Secret.
+Select "Feishu" and follow the prompts to enter App ID and App Secret.
 
 ## Step 6: Publish App
 

@@ -29,7 +29,6 @@ Commands:
   telegram           Start Telegram bot only
   feishu             Start Feishu bot only
   config             Configure a channel (interactive selection)
-  config-feishu      Configure Feishu bot directly
   help               Show this help message
 
 Examples:
@@ -38,7 +37,6 @@ Examples:
   opencode-remote telegram     # Start Telegram only
   opencode-remote feishu       # Start Feishu only
   opencode-remote config       # Interactive channel selection
-  opencode-remote config-feishu # Configure Feishu directly
 `)
 }
 
@@ -394,20 +392,6 @@ async function runConfig() {
   process.exit(0)
 }
 
-async function runConfigFeishu() {
-  printBanner()
-  const { appId, appSecret } = await promptFeishuConfig()
-
-  if (!appId || !appSecret) {
-    console.log('\n❌ Invalid credentials. Please try again.')
-    process.exit(1)
-  }
-
-  await saveFeishuConfig(appId, appSecret)
-  console.log('\n🚀 Ready! Run `opencode-remote` to start the bot.')
-  process.exit(0)
-}
-
 function hasTelegramConfig(config: Config): boolean {
   return !!(config.telegramBotToken?.trim())
 }
@@ -430,9 +414,7 @@ async function runStart() {
 
   if (!hasTelegram && !hasFeishu) {
     console.log('❌ No bots configured!')
-    console.log('\nRun one of:')
-    console.log('  opencode-remote config        # Configure Telegram')
-    console.log('  opencode-remote config-feishu # Configure Feishu')
+    console.log('\nRun: opencode-remote config')
     process.exit(1)
   }
 
@@ -518,7 +500,7 @@ async function runFeishuOnly() {
 
   if (!hasFeishuConfig(config)) {
     console.log('❌ Feishu bot not configured!')
-    console.log('\nRun: opencode-remote config-feishu')
+    console.log('\nRun: opencode-remote config')
     process.exit(1)
   }
 
@@ -549,9 +531,6 @@ switch (command) {
     break
   case 'config':
     runConfig()
-    break
-  case 'config-feishu':
-    runConfigFeishu()
     break
   case 'help':
   case '--help':

@@ -13,26 +13,19 @@ npm install -g opencode-remote-control
 pnpm install -g opencode-remote-control
 # 或
 bun install -g opencode-remote-control
-
-# 运行（首次运行会提示输入 token）
-opencode-remote
 ```
 
-### 从源码安装
+## 配置
+
+运行配置命令选择要配置的频道：
 
 ```bash
-git clone https://github.com/ceociocto/opencode-remote-control.git
-cd opencode-remote-control
-bun install
-bun run build
-node dist/cli.js
+opencode-remote config
 ```
 
-## 快速开始
+选择 **Telegram** 或 **飞书**，按交互式指南操作。
 
 ### Telegram 配置
-
-首次运行时，会提示输入 Telegram 机器人 token：
 
 1. 打开 Telegram，搜索 **@BotFather**
 2. 发送 `/newbot` 并按提示操作
@@ -42,28 +35,33 @@ Token 会保存到 `~/.opencode-remote/.env`
 
 ### 飞书配置
 
-运行飞书配置命令：
-
-```bash
-opencode-remote config-feishu
-```
-
-按照交互式指南配置飞书机器人。详细配置说明请参考 [飞书配置指南](./docs/FEISHU_SETUP.md)。
+详细配置说明请参考 [飞书配置指南](./docs/FEISHU_SETUP.md)。
 
 ## 命令
 
-**命令行：**
-```
+```bash
 opencode-remote              # 启动所有已配置的机器人
 opencode-remote start        # 启动所有已配置的机器人
 opencode-remote telegram     # 仅启动 Telegram 机器人
 opencode-remote feishu       # 仅启动飞书机器人
 opencode-remote config       # 配置频道（交互式选择）
-opencode-remote config-feishu # 直接配置飞书
 opencode-remote help         # 显示帮助
 ```
 
-**机器人命令（Telegram 和飞书通用）：**
+## 从源码安装
+
+```bash
+git clone https://github.com/ceociocto/opencode-remote-control.git
+cd opencode-remote-control
+bun install
+bun run build
+node dist/cli.js
+```
+
+## 机器人命令
+
+（Telegram 和飞书通用）
+
 | 命令 | 说明 |
 |--------|-------------|
 | `/start` | 启动机器人 |
