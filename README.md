@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  Control OpenCode from anywhere via Telegram.
+  Control OpenCode from anywhere via Telegram or Feishu.
 </p>
 
 ## Installation
@@ -26,7 +26,9 @@ pnpm install -g opencode-remote-control
 bun install -g opencode-remote-control
 ```
 
-## Setup
+## Quick Start
+
+### Telegram Setup
 
 On first run, you'll be prompted for a Telegram bot token:
 
@@ -36,12 +38,26 @@ On first run, you'll be prompted for a Telegram bot token:
 
 Token is saved to `~/.opencode-remote/.env`
 
+### Feishu Setup
+
+Run the config command for Feishu:
+
+```bash
+opencode-remote config-feishu
+```
+
+Follow the interactive guide to configure your Feishu bot. For detailed setup instructions, see [Feishu Setup Guide](./docs/FEISHU_SETUP_EN.md) or [飞书配置指南](./docs/FEISHU_SETUP.md).
+
 ## Usage
 
 ```bash
-opencode-remote         # Start the bot
-opencode-remote config  # Reconfigure token
-opencode-remote help    # Show help
+opencode-remote              # Start all configured bots
+opencode-remote start        # Start all configured bots
+opencode-remote telegram     # Start Telegram bot only
+opencode-remote feishu       # Start Feishu bot only
+opencode-remote config       # Configure a channel (interactive)
+opencode-remote config-feishu # Configure Feishu directly
+opencode-remote help         # Show help
 ```
 
 ## Install from Source
@@ -54,7 +70,9 @@ bun run build
 node dist/cli.js
 ```
 
-## Telegram Commands
+## Bot Commands
+
+Both Telegram and Feishu support the same commands:
 
 | Command | Description |
 |--------|-------------|
@@ -66,8 +84,11 @@ node dist/cli.js
 | `/diff` | View pending diff |
 | `/files` | List changed files |
 | `/reset` | Reset session |
+| `/retry` | Retry connection |
 
 ## How It Works
+
+### Telegram (Polling Mode)
 
 ```
 ┌─────────────────┐                    ┌──────────────────┐
@@ -91,13 +112,38 @@ node dist/cli.js
 └─────────────────────────────────────────────────────────┘
 ```
 
-The bot uses **Polling Mode** to fetch messages from Telegram servers, requiring no tunnel or public IP configuration.
+The Telegram bot uses **Polling Mode** to fetch messages from Telegram servers, requiring no tunnel or public IP configuration.
+
+### Feishu (Webhook Mode)
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Feishu     │───▶│  Feishu     │───▶│   Webhook   │
+│  Client     │    │  Server     │    │  (ngrok)    │
+└─────────────┘    └─────────────┘    └──────┬──────┘
+                                             │
+                                             ▼
+                                      ┌─────────────┐
+                                      │ Feishu Bot  │
+                                      │  (port 3001)│
+                                      └──────┬──────┘
+                                             │
+                                             ▼
+                                      ┌─────────────┐
+                                      │  OpenCode   │
+                                      │    SDK      │
+                                      └─────────────┘
+```
+
+The Feishu bot uses **Webhook Mode** and requires a tunnel (ngrok/cloudflared) to receive messages.
 
 ## Requirements
 
 - Node.js >= 18.0.0
 - [OpenCode](https://github.com/opencode-ai/opencode) installed
-- Telegram account
+- Telegram account (for Telegram bot)
+- Feishu account (for Feishu bot)
+- ngrok or cloudflared (for Feishu webhook)
 
 ## Contributing
 

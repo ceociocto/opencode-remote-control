@@ -2,7 +2,7 @@
 
 [English](./README.md)
 
-通过 Telegram 远程控制 OpenCode。
+通过 Telegram 或飞书远程控制 OpenCode。
 
 ## 安装
 
@@ -28,7 +28,9 @@ bun run build
 node dist/cli.js
 ```
 
-## 配置
+## 快速开始
+
+### Telegram 配置
 
 首次运行时，会提示输入 Telegram 机器人 token：
 
@@ -38,16 +40,30 @@ node dist/cli.js
 
 Token 会保存到 `~/.opencode-remote/.env`
 
+### 飞书配置
+
+运行飞书配置命令：
+
+```bash
+opencode-remote config-feishu
+```
+
+按照交互式指南配置飞书机器人。详细配置说明请参考 [飞书配置指南](./docs/FEISHU_SETUP.md)。
+
 ## 命令
 
 **命令行：**
 ```
-opencode-remote         # 启动机器人
-opencode-remote config  # 重新配置 token
-opencode-remote help    # 显示帮助
+opencode-remote              # 启动所有已配置的机器人
+opencode-remote start        # 启动所有已配置的机器人
+opencode-remote telegram     # 仅启动 Telegram 机器人
+opencode-remote feishu       # 仅启动飞书机器人
+opencode-remote config       # 配置频道（交互式选择）
+opencode-remote config-feishu # 直接配置飞书
+opencode-remote help         # 显示帮助
 ```
 
-**Telegram：**
+**机器人命令（Telegram 和飞书通用）：**
 | 命令 | 说明 |
 |--------|-------------|
 | `/start` | 启动机器人 |
@@ -58,8 +74,11 @@ opencode-remote help    # 显示帮助
 | `/diff` | 查看待处理的 diff |
 | `/files` | 列出已更改的文件 |
 | `/reset` | 重置会话 |
+| `/retry` | 重试连接 |
 
 ## 工作原理
+
+### Telegram（轮询模式）
 
 ```
 ┌─────────────────┐                    ┌──────────────────┐
@@ -83,13 +102,38 @@ opencode-remote help    # 显示帮助
 └─────────────────────────────────────────────────────────┘
 ```
 
-机器人使用 **Polling 模式** 主动从 Telegram 服务器拉取消息，无需配置 tunnel 或公网地址。
+Telegram 机器人使用 **轮询模式** 主动从服务器拉取消息，无需配置隧道或公网地址。
+
+### 飞书（Webhook 模式）
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  飞书客户端  │───▶│  飞书服务器  │───▶│   Webhook   │
+│             │    │             │    │  (ngrok)    │
+└─────────────┘    └─────────────┘    └──────┬──────┘
+                                             │
+                                             ▼
+                                      ┌─────────────┐
+                                      │ Feishu Bot  │
+                                      │  (端口 3001) │
+                                      └──────┬──────┘
+                                             │
+                                             ▼
+                                      ┌─────────────┐
+                                      │  OpenCode   │
+                                      │   SDK       │
+                                      └─────────────┘
+```
+
+飞书机器人使用 **Webhook 模式**，需要通过隧道（ngrok/cloudflared）接收消息。
 
 ## 系统要求
 
 - Node.js >= 18.0.0
 - 已安装 [OpenCode](https://github.com/opencode-ai/opencode)
-- Telegram 账号
+- Telegram 账号（用于 Telegram 机器人）
+- 飞书账号（用于飞书机器人）
+- ngrok 或 cloudflared（用于飞书 webhook）
 
 ## 参与贡献
 

@@ -5,13 +5,13 @@ import { getOrCreateSession } from './session.js'
 import { createApprovalRequest, waitForApproval, formatApprovalMessage } from './approval.js'
 import { TEMPLATES, splitMessage } from './notifications.js'
 
-export interface HandlerDeps {
-  sendMessage: (threadId: string, text: string) => Promise<void>
-  sendTyping: (threadId: string) => Promise<void>
+export interface BotAdapter {
+  reply(threadId: string, text: string): Promise<void>
+  sendTypingIndicator(threadId: string): Promise<void>
   onApprovalNeeded?: (threadId: string, message: string) => Promise<void>
 }
 
-export function createHandler(deps: HandlerDeps) {
+export function createHandler(deps: BotAdapter) {
   return {
     // Handle incoming message from user
     async handleMessage(
@@ -27,15 +27,15 @@ export function createHandler(deps: HandlerDeps) {
         }
 
         // It's a prompt - send to OpenCode
-        await deps.sendTyping(ctx.threadId)
+        await deps.sendTypingIndicator(ctx.threadId)
 
         // TODO: Actually send to OpenCode SDK
         // For now, echo back
-        await deps.sendMessage(ctx.threadId, TEMPLATES.thinking())
+        await deps.reply(ctx.threadId, TEMPLATES.thinking())
 
         // Simulate response
         setTimeout(async () => {
-          await deps.sendMessage(ctx.threadId, TEMPLATES.taskCompleted([
+          await deps.reply(ctx.threadId, TEMPLATES.taskCompleted([
             { path: 'src/example.ts', additions: 10, deletions: 2 }
           ]))
         }, 1000)
@@ -53,7 +53,7 @@ export function createHandler(deps: HandlerDeps) {
         switch (command) {
           case '/start':
           case '/help':
-            await deps.sendMessage(ctx.threadId, TEMPLATES.botStarted())
+            await deps.reply(ctx.threadId, TEMPLATES.botStarted())
             break
 
           case '/approve':
@@ -73,7 +73,7 @@ export function createHandler(deps: HandlerDeps) {
             break
 
           case '/status':
-            await deps.sendMessage(ctx.threadId,
+            await deps.reply(ctx.threadId,
               `✅ Connected\n\n💬 Session: ${session.id.slice(0, 8)}\n⏰ Idle: ${Math.round((Date.now() - session.lastActivity) / 1000)}s`
             )
             break
@@ -81,11 +81,11 @@ export function createHandler(deps: HandlerDeps) {
           case '/reset':
             session.pendingApprovals = []
             session.opencodeSessionId = undefined
-            await deps.sendMessage(ctx.threadId, '🔄 Session reset. Start fresh!')
+            await deps.reply(ctx.threadId, '🔄 Session reset. Start fresh!')
             break
 
           default:
-            await deps.sendMessage(ctx.threadId,
+            await deps.reply(ctx.threadId,
               `${EMOJI.WARNING} Unknown command: ${command}\n\nTry /help`
             )
         }
@@ -95,32 +95,32 @@ export function createHandler(deps: HandlerDeps) {
       async handleApprove(ctx: MessageContext, session: Session): Promise<void> {
         const pending = session.pendingApprovals[0]
         if (!pending) {
-          await deps.sendMessage(ctx.threadId, '🤷 Nothing to approve right now')
+          await deps.reply(ctx.threadId, '🤷 Nothing to approve right now')
           return
         }
 
         // Resolve the approval
         // TODO: Actually apply changes via OpenCode SDK
-        await deps.sendMessage(ctx.threadId, TEMPLATES.approved())
+        await deps.reply(ctx.threadId, TEMPLATES.approved())
       },
 
       // Handle /reject
       async handleReject(ctx: MessageContext, session: Session): Promise<void> {
         const pending = session.pendingApprovals[0]
         if (!pending) {
-          await deps.sendMessage(ctx.threadId, '🤷 Nothing to reject right now')
+          await deps.reply(ctx.threadId, '🤷 Nothing to reject right now')
           return
         }
 
         session.pendingApprovals.shift()
-        await deps.sendMessage(ctx.threadId, TEMPLATES.rejected())
+        await deps.reply(ctx.threadId, TEMPLATES.rejected())
       },
 
       // Handle /diff
       async handleDiff(ctx: MessageContext, session: Session): Promise<void> {
         const pending = session.pendingApprovals[0]
         if (!pending || !pending.files?.length) {
-          await deps.sendMessage(ctx.threadId, '📄 No pending changes to show')
+          await deps.reply(ctx.threadId, '📄 No pending changes to show')
           return
         }
 
@@ -131,7 +131,7 @@ export function createHandler(deps: HandlerDeps) {
 
         const messages = splitMessage(`\`\`\`diff\n${diffPreview}\n\`\`\``)
         for (const msg of messages) {
-          await deps.sendMessage(ctx.threadId, msg)
+          await deps.reply(ctx.threadId, msg)
         }
       },
 
@@ -139,7 +139,7 @@ export function createHandler(deps: HandlerDeps) {
       async handleFiles(ctx: MessageContext, session: Session): Promise<void> {
         const pending = session.pendingApprovals[0]
         if (!pending || !pending.files?.length) {
-          await deps.sendMessage(ctx.threadId, '📄 No files changed in this session')
+          await deps.reply(ctx.threadId, '📄 No files changed in this session')
           return
         }
 
@@ -147,7 +147,7 @@ export function createHandler(deps: HandlerDeps) {
           `• ${f.path} (+${f.additions}, -${f.deletions})`
         ).join('\n')
 
-        await deps.sendMessage(ctx.threadId, `📄 Changed files:\n${fileList}`)
+        await deps.reply(ctx.threadId, `📄 Changed files:\n${fileList}`)
       },
 
       // Request approval from user
@@ -160,7 +160,7 @@ export function createHandler(deps: HandlerDeps) {
         const request = createApprovalRequest(session, type, data)
         const message = formatApprovalMessage(request)
 
-        await deps.sendMessage(ctx.threadId, message)
+        await deps.reply(ctx.threadId, message)
 
         // Wait for user response
         return waitForApproval(request)

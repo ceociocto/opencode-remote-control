@@ -1,7 +1,7 @@
 {
   "name": "opencode-remote-control",
   "version": "0.1.3",
-  "description": "Control OpenCode from anywhere via Telegram",
+  "description": "Control OpenCode from anywhere via Telegram or Feishu",
   "type": "module",
   "bin": {
     "opencode-remote": "./dist/cli.js"
@@ -20,7 +20,10 @@
     "README.md"
   ],
   "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.59.0",
     "@opencode-ai/sdk": "^1.2.27",
+    "@types/express": "^5.0.6",
+    "express": "^5.2.1",
     "grammy": "^1.30.0"
   },
   "devDependencies": {
@@ -38,6 +41,8 @@
   "keywords": [
     "opencode",
     "telegram",
+    "feishu",
+    "lark",
     "remote-control",
     "ai",
     "coding"
