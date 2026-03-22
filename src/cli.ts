@@ -118,6 +118,11 @@ async function promptToken(): Promise<string> {
     })
   })
 
+  if (!token) {
+    console.log('\nCancelled')
+    process.exit(0)
+  }
+
   return token
 }
 
@@ -158,7 +163,18 @@ async function promptFeishuConfig(): Promise<{ appId: string; appSecret: string 
   }
 
   const appId = await promptInput('Enter your App ID: ')
+
+  if (!appId) {
+    console.log('\nCancelled')
+    process.exit(0)
+  }
+
   const appSecret = await promptInput('Enter your App Secret: ')
+
+  if (!appSecret) {
+    console.log('\nCancelled')
+    process.exit(0)
+  }
 
   return { appId, appSecret }
 }
