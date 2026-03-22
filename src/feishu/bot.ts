@@ -14,6 +14,12 @@ import {
   checkConnection,
   type OpenCodeSession
 } from '../opencode/client.js'
+import {
+  isAuthorized,
+  hasOwner,
+  claimOwnership,
+  getAuthStatus
+} from '../core/auth.js'
 
 let feishuClient: lark.Client | null = null
 let wsClient: lark.WSClient | null = null
@@ -99,9 +105,32 @@ async function handleCommand(
   const command = parts[0].toLowerCase()
 
   switch (command) {
-    case '/start':
-    case '/help':
-      await adapter.reply(ctx.threadId, `🚀 OpenCode Remote Control ready
+    case '/start': {
+      const result = claimOwnership('feishu', ctx.userId)
+      if (result.success) {
+        if (result.message === 'claimed') {
+          await adapter.reply(ctx.threadId, `🔐 **Security Setup Complete!**
+
+✅ You are now the authorized owner of this bot.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  **IMPORTANT SECURITY NOTICE**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Only YOU can control OpenCode through this bot.
+Other users will be blocked automatically.
+
+Your Feishu ID: \`${ctx.userId}\`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 **Ready to use!**
+💬 Send me a prompt to start coding
+/help — see all commands
+/status — check OpenCode connection`)
+        } else {
+          // Already owner
+          await adapter.reply(ctx.threadId, `🚀 OpenCode Remote Control ready
 
 💬 Send me a prompt to start coding
 /help — see all commands
@@ -109,6 +138,31 @@ async function handleCommand(
 
 Commands:
 /start — Start bot
+/status — Check connection
+/reset — Reset session
+/approve — Approve pending changes
+/reject — Reject pending changes
+/diff — See full diff
+/files — List changed files
+/retry — Retry connection
+
+💬 Anything else is treated as a prompt for OpenCode!`)
+        }
+      } else {
+        // Already claimed by someone else
+        await adapter.reply(ctx.threadId, `🚫 **Access Denied**
+
+This bot is already secured by another user.
+
+If you are the owner, check your configuration.`)
+      }
+      break
+    }
+
+    case '/help':
+      await adapter.reply(ctx.threadId, `📖 Commands
+
+/start — Claim ownership & Start bot
 /status — Check connection
 /reset — Reset session
 /approve — Approve pending changes
@@ -222,7 +276,24 @@ async function handleMessage(
 
   // Check if it's a command
   if (text.startsWith('/')) {
+    // Commands are handled by handleCommand which has its own auth logic for /start
     await handleCommand(adapter, ctx, text)
+    return
+  }
+
+  // Authorization check for non-command messages
+  if (!isAuthorized('feishu', ctx.userId)) {
+    if (!hasOwner('feishu')) {
+      await adapter.reply(ctx.threadId, `🔐 **Authorization Required**
+
+This bot is not yet secured.
+
+Please send /start to claim ownership first.`)
+    } else {
+      await adapter.reply(ctx.threadId, `🚫 **Access Denied**
+
+You are not authorized to use this bot.`)
+    }
     return
   }
 
@@ -415,6 +486,25 @@ export async function startFeishuBot(botConfig: Config) {
   console.log('✨ Long connection mode - NO tunnel/ngrok required!')
   console.log('   Just make sure your computer can access the internet.')
   console.log('')
+
+  // Show security status
+  const authStatus = getAuthStatus()
+  if (!authStatus.feishu) {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('  🔐 SECURITY NOTICE')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('')
+    console.log('  Bot is NOT yet secured!')
+    console.log('  The FIRST user to send /start will become the owner.')
+    console.log('')
+    console.log('  👉 Open Feishu and send /start to YOUR bot NOW!')
+    console.log('')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('')
+  } else {
+    console.log('🔒 Bot is secured (owner authorized)')
+    console.log('')
+  }
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('  📋 Configuration Checklist')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
