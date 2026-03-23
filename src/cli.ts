@@ -36,6 +36,7 @@ Commands:
   telegram           Start Telegram bot only
   feishu             Start Feishu bot only
   config             Configure a channel (interactive selection)
+  config timeout     Set request timeout (for long-running tasks)
   help               Show this help message
   version            Show version information
 
@@ -54,6 +55,7 @@ Examples:
   opencode-remote telegram     # Start Telegram only
   opencode-remote feishu       # Start Feishu only
   opencode-remote config       # Interactive channel selection
+  opencode-remote config timeout  # Set request timeout
   opencode-remote --version    # Show version
   opencode-remote --proxy http://192.168.1.100:7890  # With proxy
 `)
@@ -427,6 +429,113 @@ async function saveFeishuConfig(appId: string, appSecret: string) {
   showFeishuSetupGuide()
 }
 
+// Get current timeout from config file
+function getCurrentTimeout(): number {
+  if (existsSync(CONFIG_FILE)) {
+    const content = readFileSync(CONFIG_FILE, 'utf-8')
+    const match = content.match(/OPENCODE_REQUEST_TIMEOUT_MINUTES=(\d+)/)
+    if (match) {
+      return parseInt(match[1], 10)
+    }
+  }
+  return 30 // default
+}
+
+// Save timeout setting to config file
+async function saveTimeoutConfig(timeoutMinutes: number) {
+  // Create config directory if needed
+  if (!existsSync(CONFIG_DIR)) {
+    mkdirSync(CONFIG_DIR, { recursive: true })
+  }
+
+  // Read existing config
+  let existing = ''
+  if (existsSync(CONFIG_FILE)) {
+    existing = readFileSync(CONFIG_FILE, 'utf-8')
+  }
+
+  // Filter out old timeout config
+  const lines = existing.split('\n').filter(line =>
+    !line.startsWith('OPENCODE_REQUEST_TIMEOUT_MINUTES=')
+  )
+
+  // Add new timeout config
+  lines.push(`OPENCODE_REQUEST_TIMEOUT_MINUTES=${timeoutMinutes}`)
+
+  writeFileSync(CONFIG_FILE, lines.join('\n'))
+  console.log(`\n✅ Timeout saved: ${timeoutMinutes} minutes`)
+}
+
+// Interactive timeout configuration
+async function runConfigTimeout() {
+  printBanner()
+
+  const currentTimeout = getCurrentTimeout()
+
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('  ⏱️  Request Timeout Configuration')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('')
+  console.log('  This sets how long to wait for OpenCode responses.')
+  console.log('  Increase this if you get "fetch failed" errors for long tasks.')
+  console.log('')
+  console.log(`  Current timeout: ${currentTimeout} minutes`)
+  console.log('')
+  console.log('  Recommended values:')
+  console.log('    • 30 minutes  (default, good for most tasks)')
+  console.log('    • 60 minutes  (for complex refactoring)')
+  console.log('    • 120 minutes (for large projects)')
+  console.log('')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('')
+
+  process.stdout.write('Enter timeout in minutes (or press Enter to keep current): ')
+
+  const input = await new Promise<string>((resolve) => {
+    process.stdin.resume()
+    process.stdin.setEncoding('utf8')
+
+    const cleanup = () => {
+      process.stdin.pause()
+      process.removeListener('SIGINT', onSigint)
+    }
+
+    const onSigint = () => {
+      cleanup()
+      console.log('\nCancelled')
+      process.exit(0)
+    }
+
+    process.once('SIGINT', onSigint)
+
+    process.stdin.once('data', (chunk) => {
+      cleanup()
+      resolve(chunk.toString().trim())
+    })
+  })
+
+  if (!input) {
+    console.log('\n⏭️  No change made.')
+    process.exit(0)
+  }
+
+  const timeout = parseInt(input, 10)
+
+  if (isNaN(timeout) || timeout < 1) {
+    console.log('\n❌ Invalid number. Please enter a positive number.')
+    process.exit(1)
+  }
+
+  if (timeout > 480) {
+    console.log('\n⚠️  Warning: Timeout exceeds 8 hours. Are you sure?')
+  }
+
+  await saveTimeoutConfig(timeout)
+  console.log('\n🚀 Restart opencode-remote for the change to take effect.')
+
+  process.exit(0)
+}
+
 async function runConfig() {
   printBanner()
 
@@ -587,6 +696,7 @@ const args = process.argv.slice(2)
 // Parse global options
 let proxyUrl: string | null = null
 let command = 'start'
+let subCommand: string | null = null
 
 for (let i = 0; i < args.length; i++) {
   const arg = args[i]
@@ -603,14 +713,24 @@ for (let i = 0; i < args.length; i++) {
     command = 'version'
   } else if (arg === '--help' || arg === '-h') {
     command = 'help'
-  } else if (!arg.startsWith('-') && command === 'start') {
-    command = arg
+  } else if (!arg.startsWith('-')) {
+    if (command === 'start') {
+      command = arg
+    } else if (command === 'config' && !subCommand) {
+      subCommand = arg
+    }
   }
 }
 
 // Set up proxy if specified
 if (proxyUrl) {
   setGlobalProxy(proxyUrl)
+}
+
+// Handle config subcommands
+if (command === 'config' && subCommand === 'timeout') {
+  runConfigTimeout()
+  process.exit(0)
 }
 
 switch (command) {

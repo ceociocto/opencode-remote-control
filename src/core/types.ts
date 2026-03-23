@@ -61,6 +61,8 @@ export interface Config {
   sessionIdleTimeoutMs: number
   cleanupIntervalMs: number
   approvalTimeoutMs: number
+  // HTTP timeout config (in minutes)
+  requestTimeoutMinutes?: number
 }
 
 export function loadConfig(): Config {

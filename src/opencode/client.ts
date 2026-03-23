@@ -3,11 +3,18 @@
 import '../patch_spawn.js'
 import { createRequire } from 'node:module'
 import { platform } from 'node:os'
+import { existsSync, readFileSync } from 'fs'
+import { homedir } from 'os'
+import { join } from 'path'
 
 const require = createRequire(import.meta.url)
 const childProcess = require('node:child_process')
 
 type OpenCodeInstance = Awaited<ReturnType<typeof import('@opencode-ai/sdk').createOpencode>>
+
+// Config file path (same as cli.ts)
+const CONFIG_DIR = join(homedir(), '.opencode-remote')
+const CONFIG_FILE = join(CONFIG_DIR, '.env')
 
 // Global proxy URL - set via CLI --proxy or environment variables
 let globalProxyUrl: string | null = null
@@ -43,58 +50,118 @@ export function getProxyUrl(): string | null {
   )
 }
 
-async function setupProxyAgent(proxyUrl: string): Promise<boolean> {
-  try {
-    // undici is built into Node.js 18+
-    const undici = await import('undici')
-    const { ProxyAgent, setGlobalDispatcher } = undici
+// Timeout configuration - can be customized via config file or environment variables
+// Default: 30 minutes for request timeout, 1 minute for keep-alive
+const DEFAULT_REQUEST_TIMEOUT_MINUTES = 30
+const DEFAULT_KEEP_ALIVE_SECONDS = 60
 
+/**
+ * Read timeout setting from config file
+ */
+function readTimeoutFromConfig(): number | null {
+  if (!existsSync(CONFIG_FILE)) return null
+
+  try {
+    const content = readFileSync(CONFIG_FILE, 'utf-8')
+    const match = content.match(/OPENCODE_REQUEST_TIMEOUT_MINUTES=(\d+)/)
+    if (match) {
+      return parseInt(match[1], 10)
+    }
+  } catch {
+    // Ignore read errors
+  }
+  return null
+}
+
+/**
+ * Get request timeout in milliseconds.
+ * Priority: environment variable > config file > default
+ * Default: 30 minutes
+ */
+function getRequestTimeoutMs(): number {
+  // First check environment variable
+  if (process.env.OPENCODE_REQUEST_TIMEOUT_MINUTES) {
+    const minutes = parseInt(process.env.OPENCODE_REQUEST_TIMEOUT_MINUTES, 10)
+    if (!isNaN(minutes) && minutes > 0) {
+      return minutes * 60 * 1000
+    }
+  }
+
+  // Then check config file
+  const configValue = readTimeoutFromConfig()
+  if (configValue !== null && configValue > 0) {
+    return configValue * 60 * 1000
+  }
+
+  // Fall back to default
+  return DEFAULT_REQUEST_TIMEOUT_MINUTES * 60 * 1000
+}
+
+/**
+ * Get keep-alive timeout in milliseconds.
+ * Set via OPENCODE_KEEP_ALIVE_SECONDS environment variable.
+ * Default: 60 seconds
+ */
+function getKeepAliveMs(): number {
+  const seconds = parseInt(
+    process.env.OPENCODE_KEEP_ALIVE_SECONDS || String(DEFAULT_KEEP_ALIVE_SECONDS),
+    10
+  )
+  return seconds * 1000
+}
+
+/**
+ * Configure undici global dispatcher with proper timeouts.
+ * This fixes the default 5-minute timeout issue.
+ * Must be called before any fetch requests are made.
+ */
+async function configureGlobalDispatcher(): Promise<void> {
+  const { setGlobalDispatcher, Agent, ProxyAgent } = await import('undici')
+
+  const proxyUrl = getProxyUrl()
+  const requestTimeoutMs = getRequestTimeoutMs()
+  const keepAliveMs = getKeepAliveMs()
+
+  if (proxyUrl) {
+    // Use ProxyAgent for proxy connections
     const proxyAgent = new ProxyAgent({
       uri: proxyUrl,
       requestTls: {
-        timeout: 30 * 60 * 1000,
+        timeout: requestTimeoutMs,
       },
     })
-
-    // Set as global dispatcher for all fetch requests
     setGlobalDispatcher(proxyAgent)
-    console.log(`✅ Proxy agent initialized for all HTTP requests`)
-    return true
-  } catch (err) {
-    console.warn('⚠️ Failed to configure proxy agent:', err)
-    return false
+    console.log(`✅ Proxy agent initialized (timeout: ${requestTimeoutMs / 60000}min)`)
+  } else {
+    // Use regular Agent with extended timeouts
+    const agent = new Agent({
+      headersTimeout: requestTimeoutMs,
+      bodyTimeout: requestTimeoutMs,
+      keepAliveTimeout: keepAliveMs,
+      keepAliveMaxTimeout: requestTimeoutMs,
+    })
+    setGlobalDispatcher(agent)
+    console.log(`✅ HTTP agent initialized (timeout: ${requestTimeoutMs / 60000}min)`)
   }
 }
 
-function patchFetchForProxyAndTimeout() {
-  if (typeof globalThis.fetch !== 'function') return
-  const originalFetch = globalThis.fetch
+// Track if dispatcher has been configured
+let dispatcherConfigured = false
 
-  // Set up proxy using undici's global dispatcher
-  const proxyUrl = getProxyUrl()
-  if (proxyUrl) {
-    // Use dynamic import for ESM compatibility
-    setupProxyAgent(proxyUrl).catch((err) => {
-      console.warn('⚠️ Failed to configure proxy agent:', err)
-    })
+/**
+ * Initialize fetch with proper timeouts.
+ * This is now async and must be awaited.
+ */
+async function patchFetchForProxyAndTimeout(): Promise<void> {
+  if (dispatcherConfigured) return
+
+  try {
+    await configureGlobalDispatcher()
+    dispatcherConfigured = true
+  } catch (err) {
+    console.warn('⚠️ Failed to configure HTTP dispatcher:', err)
+    // Continue anyway - default timeouts will be used
   }
-
-  // @ts-ignore - internal API
-  const originalDispatcher = originalFetch[Symbol.for('undici.globalDispatcher.1')]
-  if (originalDispatcher) {
-    // @ts-ignore
-    originalDispatcher.headersTimeout = 30 * 60 * 1000
-    // @ts-ignore
-    originalDispatcher.bodyTimeout = 30 * 60 * 1000
-  }
-
-  globalThis.fetch = function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    if (init?.signal) {
-      const { signal: _signal, ...rest } = init
-      return originalFetch(input, rest)
-    }
-    return originalFetch(input, init)
-  } as typeof globalThis.fetch
 }
 
 if (platform() === 'win32') {
@@ -156,7 +223,7 @@ let opencodeInstance: OpenCodeInstance | null = null
 let verificationDone = false
 
 export async function initOpenCode(): Promise<OpenCodeInstance> {
-  patchFetchForProxyAndTimeout()
+  await patchFetchForProxyAndTimeout()
   if (opencodeInstance) {
     return opencodeInstance
   }
