@@ -4,7 +4,17 @@
 
 [English](./README.md)
 
-通过 Telegram 或飞书远程控制 OpenCode。
+---
+
+## 🎉 v0.7.0 重要更新
+
+**官方微信（WeChat）渠道支持！**
+
+现在你可以通过微信使用官方 iLink Bot API 控制 OpenCode。扫码登录，无需内网穿透！
+
+---
+
+通过 **Telegram**、**飞书** 或 **微信** 远程控制 OpenCode。
 
 > **免责声明**：本项目并非由 OpenCode 团队开发，与 OpenCode 无任何关联。这是一个基于 OpenCode 构建的独立社区项目。
 
@@ -14,7 +24,8 @@
 - 已安装 [OpenCode](https://github.com/opencode-ai/opencode) 且在 PATH 中可用
 - Telegram 账号（用于 Telegram 机器人）
 - 飞书账号（用于飞书机器人）
-- **无需** ngrok 或 cloudflared（飞书使用 WebSocket 长连接）
+- 微信账号（用于微信机器人）
+- **无需** ngrok 或 cloudflared（飞书使用 WebSocket，微信使用长轮询）
 
 ### 验证 OpenCode 安装
 
@@ -49,7 +60,7 @@ bun install -g opencode-remote-control@latest
 opencode-remote config
 ```
 
-选择 **Telegram** 或 **飞书**，按交互式指南操作。
+选择 **Telegram**、**飞书** 或 **微信**，按交互式指南操作。
 
 ### Telegram 配置
 
@@ -76,9 +87,9 @@ Token 会保存到 `~/.opencode-remote/.env`
 
 | 权限名称 | 权限标识 |
 |---------|---------|
-| 获取与发送单聊、群组消息 | `im:message` |
+| 获取与发送消息 | `im:message` |
 | 以应用身份发消息 | `im:message:send_as_bot` |
-| 接收群聊中@机器人消息 | `im:message:receive_as_bot` |
+| 接收机器人消息 | `im:message:receive_as_bot` |
 
 #### 步骤 3：启用机器人
 
@@ -114,19 +125,63 @@ opencode-remote config
 
 详细配置说明请参考 [飞书配置指南](./docs/FEISHU_SETUP.md)。
 
+### 微信配置（新功能！🎉）
+
+微信使用官方 **iLink Bot API**，通过扫码登录，无需内网穿透！
+
+> ⚠️ **重要提示**：请确保微信已更新到 **最新版本**，否则无法使用机器人功能。
+
+#### 快速开始
+
+```bash
+opencode-remote weixin
+```
+
+1. 终端会显示一个二维码 URL
+2. 用微信扫描二维码
+3. 在手机上确认登录
+4. 凭据会自动保存，下次启动无需再次登录
+
+#### 工作原理
+
+微信机器人使用 **长轮询模式** 接收消息：
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  微信 App   │───▶│  iLink      │───▶│  长轮询     │
+│             │    │  Gateway    │    │  (HTTPS)    │
+└─────────────┘    └─────────────┘    └──────┬──────┘
+                                             │
+                                             ▼
+                                      ┌─────────────┐
+                                      │ 微信机器人  │
+                                      │  (本地运行)  │
+                                      └──────┬──────┘
+                                             │
+                                             ▼
+                                      ┌─────────────┐
+                                      │  OpenCode   │
+                                      │   SDK       │
+                                      └─────────────┘
+```
+
 ## 启动服务
 
 配置完成后，启动机器人服务：
 
 ```bash
-opencode-remote
+opencode-remote              # 启动所有已配置的机器人
+opencode-remote start        # 启动所有已配置的机器人
+opencode-remote telegram     # 仅启动 Telegram 机器人
+opencode-remote feishu       # 仅启动飞书机器人
+opencode-remote weixin       # 仅启动微信机器人
 ```
 
-搞定！现在你可以通过 Telegram 或飞书机器人远程控制 OpenCode 了。
+搞定！现在你可以通过 Telegram、飞书或微信机器人远程控制 OpenCode 了。
 
 ## 代理配置
 
-如果你需要通过代理访问 OpenAI API（例如在受限网络环境中），可以配置代理：
+如果你需要通过代理访问 API（例如在受限网络环境中），可以配置代理：
 
 ### 通过 CLI 参数
 
@@ -170,6 +225,7 @@ opencode-remote              # 启动所有已配置的机器人
 opencode-remote start        # 启动所有已配置的机器人
 opencode-remote telegram     # 仅启动 Telegram 机器人
 opencode-remote feishu       # 仅启动飞书机器人
+opencode-remote weixin       # 仅启动微信机器人
 opencode-remote config       # 配置频道（交互式选择）
 opencode-remote help         # 显示帮助
 ```
@@ -186,7 +242,7 @@ node dist/cli.js
 
 ## 机器人命令
 
-（Telegram 和飞书通用）
+（Telegram、飞书和微信通用）
 
 | 命令 | 说明 |
 |--------|-------------|
@@ -207,7 +263,7 @@ node dist/cli.js
 ```
 ┌─────────────────┐                    ┌──────────────────┐
 │  Telegram App   │                    │  Telegram Server │
-│   (手机)        │◀────── 消息 ──────▶│     (云端)       │
+│   (手机)        │◀──── 消息 ────────▶│     (云端)       │
 └─────────────────┘                    └────────┬─────────┘
                                                 │
                      ┌──────── Polling ─────────┘

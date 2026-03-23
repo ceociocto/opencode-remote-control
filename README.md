@@ -10,10 +10,20 @@
 </p>
 
 <p align="center">
-  <a href="./README_CN.md">中文文档</a>
+  <a href="./README_cn.md">中文文档</a>
 </p>
 
-Control OpenCode from anywhere via Telegram or Feishu.
+---
+
+## 🎉 What's New in v0.7.0
+
+**Official WeChat (微信) Channel Support!**
+
+Now you can control OpenCode through WeChat using the official iLink Bot API. Scan QR code to login, no tunnel required!
+
+---
+
+Control OpenCode from anywhere via **Telegram**, **Feishu**, or **WeChat**.
 
 > **Disclaimer**: This project is not built by the OpenCode team and is not affiliated with OpenCode in any way. It is an independent community project that builds upon OpenCode.
 
@@ -23,7 +33,8 @@ Control OpenCode from anywhere via Telegram or Feishu.
 - [OpenCode](https://github.com/opencode-ai/opencode) installed and accessible in PATH
 - Telegram account (for Telegram bot)
 - Feishu account (for Feishu bot)
-- **No** ngrok or cloudflared required (Feishu uses WebSocket long connection)
+- WeChat account (for WeChat bot)
+- **No** ngrok or cloudflared required (Feishu uses WebSocket, WeChat uses long-polling)
 
 ### Verify OpenCode Installation
 
@@ -58,7 +69,7 @@ Run the config command to set up your preferred channel:
 opencode-remote config
 ```
 
-Select **Telegram** or **Feishu** and follow the interactive guide.
+Select **Telegram**, **Feishu**, or **WeChat** and follow the interactive guide.
 
 ### Telegram Setup
 
@@ -121,19 +132,63 @@ Select "Feishu" and enter your App ID and App Secret.
 
 For detailed setup instructions, see [Feishu Setup Guide](./docs/FEISHU_SETUP_EN.md) or [飞书配置指南](./docs/FEISHU_SETUP.md).
 
+### WeChat Setup (New! 🎉)
+
+WeChat uses the official **iLink Bot API** with QR code login - no tunnel required!
+
+> ⚠️ **Important**: You need to update WeChat to the **latest version** to use the bot feature.
+
+#### Quick Start
+
+```bash
+opencode-remote weixin
+```
+
+1. A QR code URL will be displayed in the terminal
+2. Open the URL and scan with your WeChat app
+3. Confirm login on your phone
+4. Credentials are saved automatically for future use
+
+#### How It Works
+
+WeChat bot uses **long-polling mode** to receive messages:
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  WeChat     │───▶│  iLink      │───▶│  Long-Poll  │
+│  App        │    │  Gateway    │    │  (HTTPS)    │
+└─────────────┘    └─────────────┘    └──────┬──────┘
+                                             │
+                                             ▼
+                                      ┌─────────────┐
+                                      │ WeChat Bot  │
+                                      │  (Local)    │
+                                      └──────┬──────┘
+                                             │
+                                             ▼
+                                      ┌─────────────┐
+                                      │  OpenCode   │
+                                      │    SDK      │
+                                      └─────────────┘
+```
+
 ## Start Service
 
 Once configured, start the bot service:
 
 ```bash
-opencode-remote
+opencode-remote              # Start all configured bots
+opencode-remote start        # Start all configured bots
+opencode-remote telegram     # Start Telegram bot only
+opencode-remote feishu       # Start Feishu bot only
+opencode-remote weixin       # Start WeChat bot only
 ```
 
-That's it! You can now send messages to your Telegram bot or Feishu bot to control OpenCode remotely.
+That's it! You can now send messages to your Telegram, Feishu, or WeChat bot to control OpenCode remotely.
 
 ## Proxy Configuration
 
-If you need to access the OpenAI API through a proxy (e.g., in restricted network environments), you can configure a proxy:
+If you need to access the API through a proxy (e.g., in restricted network environments), you can configure a proxy:
 
 ### Via CLI Flag
 
@@ -177,6 +232,7 @@ opencode-remote              # Start all configured bots
 opencode-remote start        # Start all configured bots
 opencode-remote telegram     # Start Telegram bot only
 opencode-remote feishu       # Start Feishu bot only
+opencode-remote weixin       # Start WeChat bot only
 opencode-remote config       # Configure a channel (interactive)
 opencode-remote help         # Show help
 ```
@@ -193,7 +249,7 @@ node dist/cli.js
 
 ## Bot Commands
 
-Both Telegram and Feishu support the same commands:
+Telegram, Feishu, and WeChat all support the same commands:
 
 | Command | Description |
 |--------|-------------|
