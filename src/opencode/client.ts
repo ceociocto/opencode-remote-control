@@ -149,10 +149,11 @@ async function configureGlobalDispatcher(): Promise<void> {
 let dispatcherConfigured = false
 
 /**
- * Initialize fetch with proper timeouts.
+ * Initialize fetch with proper timeouts and proxy configuration.
  * This is now async and must be awaited.
+ * Call this before making any fetch requests if you need proxy support.
  */
-async function patchFetchForProxyAndTimeout(): Promise<void> {
+export async function initFetchConfig(): Promise<void> {
   if (dispatcherConfigured) return
 
   try {
@@ -223,7 +224,7 @@ let opencodeInstance: OpenCodeInstance | null = null
 let verificationDone = false
 
 export async function initOpenCode(): Promise<OpenCodeInstance> {
-  await patchFetchForProxyAndTimeout()
+  await initFetchConfig()
   if (opencodeInstance) {
     return opencodeInstance
   }

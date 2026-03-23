@@ -7,11 +7,14 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { startBot } from './telegram/bot.js'
 import { startFeishuBot } from './feishu/bot.js'
+import { startWeixinBot } from './weixin/bot.js'
 import { setGlobalProxy } from './opencode/client.js'
 import type { Config } from './core/types.js'
+import { loadWeixinCredentials } from './weixin/bot.js'
 
 const CONFIG_DIR = join(homedir(), '.opencode-remote')
 const CONFIG_FILE = join(CONFIG_DIR, '.env')
+
 
 // Read version from package.json to avoid hardcoding
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -21,8 +24,8 @@ const VERSION = packageJson.version
 function printBanner() {
   console.log(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  OpenCode Remote Control
-  Control OpenCode from Telegram or Feishu
+  OpenCode Remote Control v${VERSION}
+  Control OpenCode from Telegram, Feishu, or WeChat
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `)
 }
@@ -35,6 +38,7 @@ Commands:
   start              Start all configured bots (default)
   telegram           Start Telegram bot only
   feishu             Start Feishu bot only
+  weixin             Start Weixin (微信) bot only
   config             Configure a channel (interactive selection)
   config timeout     Set request timeout (for long-running tasks)
   help               Show this help message
@@ -54,6 +58,7 @@ Examples:
   opencode-remote start        # Start all bots
   opencode-remote telegram     # Start Telegram only
   opencode-remote feishu       # Start Feishu only
+  opencode-remote weixin       # Start Weixin only
   opencode-remote config       # Interactive channel selection
   opencode-remote config timeout  # Set request timeout
   opencode-remote --version    # Show version
@@ -61,14 +66,15 @@ Examples:
 `)
 }
 
-async function promptChannel(): Promise<'telegram' | 'feishu'> {
+async function promptChannel(): Promise<'telegram' | 'feishu' | 'weixin'> {
   console.log('\n📝 Select a channel to configure:')
   console.log('')
   console.log('  1. Telegram')
   console.log('  2. Feishu (飞书)')
+  console.log('  3. Weixin (微信)')
   console.log('')
 
-  process.stdout.write('Enter your choice (1 or 2): ')
+  process.stdout.write('Enter your choice (1, 2 or 3): ')
 
   const choice = await new Promise<string>((resolve) => {
     process.stdin.setEncoding('utf8')
@@ -96,6 +102,8 @@ async function promptChannel(): Promise<'telegram' | 'feishu'> {
     return 'telegram'
   } else if (choice === '2' || choice.toLowerCase() === 'feishu') {
     return 'feishu'
+  } else if (choice === '3' || choice.toLowerCase() === 'weixin' || choice.toLowerCase() === '微信') {
+    return 'weixin'
   }
 
   // Default to telegram if invalid input
@@ -552,7 +560,7 @@ async function runConfig() {
 
     await saveConfig(token)
     console.log('\n🚀 Ready! Run `opencode-remote` to start the bot.')
-  } else {
+  } else if (channel === 'feishu') {
     const { appId, appSecret } = await promptFeishuConfig()
 
     if (!appId || !appSecret) {
@@ -562,6 +570,27 @@ async function runConfig() {
 
     await saveFeishuConfig(appId, appSecret)
     console.log('\n🚀 Ready! Run `opencode-remote feishu` to start the Feishu bot.')
+  } else if (channel === 'weixin') {
+    // Weixin uses QR code login, no manual config needed
+    console.log('')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('  📱 Weixin (微信) Login')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('')
+    console.log('  Weixin bot uses QR code login.')
+    console.log('  No manual configuration needed!')
+    console.log('')
+    console.log('  To set up Weixin:')
+    console.log('')
+    console.log('  1. Run: opencode-remote weixin')
+    console.log('  2. Scan the QR code with your WeChat app')
+    console.log('  3. Confirm login on your phone')
+    console.log('')
+    console.log('  Credentials will be saved automatically.')
+    console.log('')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('')
+    console.log('🚀 Run `opencode-remote weixin` to start the login process.')
   }
 
   process.exit(0)
@@ -578,6 +607,26 @@ function hasFeishuConfig(config: Config): boolean {
   )
 }
 
+function hasWeixinConfig(): boolean {
+  // Weixin credentials are stored in a separate file
+  const creds = loadWeixinCredentials()
+  return !!(creds?.token && creds?.accountId)
+}
+
+// Helper function for handleShutdown
+function createShutdownHandler() {
+  let isShuttingDown = false
+  return () => {
+    if (isShuttingDown) return
+    isShuttingDown = true
+    console.log('\n🛑 Shutting down...')
+    setTimeout(() => {
+      console.log('Goodbye!')
+      process.exit(0)
+    }, 1000)
+  }
+}
+
 async function runStart() {
   const config = await getConfig()
 
@@ -586,28 +635,16 @@ async function runStart() {
   // Check what's configured
   const hasTelegram = hasTelegramConfig(config)
   const hasFeishu = hasFeishuConfig(config)
+  const hasWeixin = hasWeixinConfig()
 
-  if (!hasTelegram && !hasFeishu) {
+  if (!hasTelegram && !hasFeishu && !hasWeixin) {
     console.log('❌ No bots configured!')
     console.log('\nRun: opencode-remote config')
     process.exit(1)
   }
 
-  // Track shutdown state
-  let isShuttingDown = false
-
   // Handle graceful shutdown at CLI level
-  const handleShutdown = () => {
-    if (isShuttingDown) return
-    isShuttingDown = true
-    console.log('\n🛑 Shutting down...')
-    // The individual bots will handle their own cleanup via their SIGINT handlers
-    // We just need to ensure the process exits
-    setTimeout(() => {
-      console.log('Goodbye!')
-      process.exit(0)
-    }, 1000)
-  }
+  const handleShutdown = createShutdownHandler()
 
   process.once('SIGINT', handleShutdown)
   process.once('SIGTERM', handleShutdown)
@@ -631,6 +668,16 @@ async function runStart() {
     promises.push(
       startFeishuBot(config).catch((err) => {
         console.error('Feishu bot failed:', err)
+        return { status: 'rejected', reason: err }
+      })
+    )
+  }
+
+  if (hasWeixin) {
+    console.log('🤖 Starting Weixin bot...')
+    promises.push(
+      startWeixinBot(config).catch((err) => {
+        console.error('Weixin bot failed:', err)
         return { status: 'rejected', reason: err }
       })
     )
@@ -690,6 +737,21 @@ async function runFeishuOnly() {
   }
 }
 
+async function runWeixinOnly() {
+  const config = await getConfig()
+
+  printBanner()
+  console.log('🤖 Starting Weixin bot...')
+
+  // Weixin bot handles its own login flow if credentials don't exist
+  try {
+    await startWeixinBot(config)
+  } catch (error) {
+    console.error('Failed to start:', error)
+    process.exit(1)
+  }
+}
+
 // Main CLI
 const args = process.argv.slice(2)
 
@@ -742,6 +804,9 @@ switch (command) {
     break
   case 'feishu':
     runFeishuOnly()
+    break
+  case 'weixin':
+    runWeixinOnly()
     break
   case 'config':
     runConfig()

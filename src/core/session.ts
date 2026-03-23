@@ -28,7 +28,7 @@ export function initSessionManager(config: Config = loadConfig()) {
 
 export function getOrCreateSession(
   threadId: string,
-  platform: 'telegram' | 'feishu'
+  platform: 'telegram' | 'feishu' | 'weixin'
 ): Session {
   const existing = sessions.get(threadId)
   if (existing) {

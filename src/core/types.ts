@@ -3,7 +3,7 @@
 export interface Session {
   id: string
   threadId: string
-  platform: 'telegram' | 'feishu'
+  platform: 'telegram' | 'feishu' | 'weixin'
   createdAt: number
   lastActivity: number
   opencodeSessionId?: string
@@ -27,7 +27,7 @@ export interface FileChange {
 }
 
 export interface MessageContext {
-  platform: 'telegram' | 'feishu'
+  platform: 'telegram' | 'feishu' | 'weixin'
   threadId: string
   userId: string
   messageId?: string
@@ -55,6 +55,9 @@ export interface Config {
   // Feishu config (optional) - uses WebSocket long connection, no tunnel required
   feishuAppId?: string
   feishuAppSecret?: string
+  // Weixin config (optional) - uses long-polling
+  weixinToken?: string
+  weixinBaseUrl?: string
   // OpenCode config
   opencodeServerUrl: string
   tunnelUrl: string
@@ -70,6 +73,8 @@ export function loadConfig(): Config {
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || undefined,
     feishuAppId: process.env.FEISHU_APP_ID || undefined,
     feishuAppSecret: process.env.FEISHU_APP_SECRET || undefined,
+    weixinToken: process.env.WEIXIN_TOKEN || undefined,
+    weixinBaseUrl: process.env.WEIXIN_BASE_URL || undefined,
     opencodeServerUrl: process.env.OPENCODE_SERVER_URL || 'http://localhost:3000',
     tunnelUrl: process.env.TUNNEL_URL || '',
     sessionIdleTimeoutMs: parseInt(process.env.SESSION_IDLE_TIMEOUT_MS || '1800000', 10),
