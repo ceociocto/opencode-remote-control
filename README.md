@@ -17,12 +17,6 @@ Control OpenCode from anywhere via Telegram or Feishu.
 
 > **Disclaimer**: This project is not built by the OpenCode team and is not affiliated with OpenCode in any way. It is an independent community project that builds upon OpenCode.
 
-## What's New in v0.2
-
-- **Feishu Channel** — Now supports Feishu/Lark bot with WebSocket long connection (no tunnel required!)
-- **Faster Responses** — Optimized timeout handling for long AI responses
-- **Better CLI** — Improved configuration experience with existing value display
-
 ## Requirements
 
 - Node.js >= 18.0.0
