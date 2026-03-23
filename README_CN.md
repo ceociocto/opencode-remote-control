@@ -6,6 +6,8 @@
 
 通过 Telegram 或飞书远程控制 OpenCode。
 
+> **免责声明**：本项目并非由 OpenCode 团队开发，与 OpenCode 无任何关联。这是一个基于 OpenCode 构建的独立社区项目。
+
 ## v0.2 新特性
 
 - **飞书频道** — 新增飞书/Lark 机器人支持，使用 WebSocket 长连接（无需内网穿透！）
