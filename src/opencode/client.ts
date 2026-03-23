@@ -9,9 +9,76 @@ const childProcess = require('node:child_process')
 
 type OpenCodeInstance = Awaited<ReturnType<typeof import('@opencode-ai/sdk').createOpencode>>
 
-function patchFetchForUnlimitedTimeout() {
+// Global proxy URL - set via CLI --proxy or environment variables
+let globalProxyUrl: string | null = null
+
+/**
+ * Set the global proxy URL for all HTTP/HTTPS requests.
+ * Supports HTTP and HTTPS proxy protocols.
+ */
+export function setGlobalProxy(proxyUrl: string): void {
+  globalProxyUrl = proxyUrl
+  console.log(`🌐 Proxy configured: ${proxyUrl.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}`)
+}
+
+/**
+ * Get the current proxy URL.
+ * Priority: explicitly set > HTTPS_PROXY > HTTP_PROXY > ALL_PROXY
+ */
+export function getProxyUrl(): string | null {
+  if (globalProxyUrl) return globalProxyUrl
+
+  // Check environment variables in order of priority
+  // For HTTPS requests, HTTPS_PROXY takes precedence
+  // For HTTP requests, HTTP_PROXY takes precedence
+  // ALL_PROXY is a fallback for both
+  return (
+    process.env.HTTPS_PROXY ||
+    process.env.https_proxy ||
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy ||
+    process.env.ALL_PROXY ||
+    process.env.all_proxy ||
+    null
+  )
+}
+
+async function setupProxyAgent(proxyUrl: string): Promise<boolean> {
+  try {
+    // undici is built into Node.js 18+
+    const undici = await import('undici')
+    const { ProxyAgent, setGlobalDispatcher } = undici
+
+    const proxyAgent = new ProxyAgent({
+      uri: proxyUrl,
+      requestTls: {
+        timeout: 30 * 60 * 1000,
+      },
+    })
+
+    // Set as global dispatcher for all fetch requests
+    setGlobalDispatcher(proxyAgent)
+    console.log(`✅ Proxy agent initialized for all HTTP requests`)
+    return true
+  } catch (err) {
+    console.warn('⚠️ Failed to configure proxy agent:', err)
+    return false
+  }
+}
+
+function patchFetchForProxyAndTimeout() {
   if (typeof globalThis.fetch !== 'function') return
   const originalFetch = globalThis.fetch
+
+  // Set up proxy using undici's global dispatcher
+  const proxyUrl = getProxyUrl()
+  if (proxyUrl) {
+    // Use dynamic import for ESM compatibility
+    setupProxyAgent(proxyUrl).catch((err) => {
+      console.warn('⚠️ Failed to configure proxy agent:', err)
+    })
+  }
+
   // @ts-ignore - internal API
   const originalDispatcher = originalFetch[Symbol.for('undici.globalDispatcher.1')]
   if (originalDispatcher) {
@@ -20,6 +87,7 @@ function patchFetchForUnlimitedTimeout() {
     // @ts-ignore
     originalDispatcher.bodyTimeout = 30 * 60 * 1000
   }
+
   globalThis.fetch = function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     if (init?.signal) {
       const { signal: _signal, ...rest } = init
@@ -88,7 +156,7 @@ let opencodeInstance: OpenCodeInstance | null = null
 let verificationDone = false
 
 export async function initOpenCode(): Promise<OpenCodeInstance> {
-  patchFetchForUnlimitedTimeout()
+  patchFetchForProxyAndTimeout()
   if (opencodeInstance) {
     return opencodeInstance
   }

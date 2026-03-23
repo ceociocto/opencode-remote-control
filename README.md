@@ -136,6 +136,45 @@ opencode-remote
 
 That's it! You can now send messages to your Telegram bot or Feishu bot to control OpenCode remotely.
 
+## Proxy Configuration
+
+If you need to access the OpenAI API through a proxy (e.g., in restricted network environments), you can configure a proxy:
+
+### Via CLI Flag
+
+```bash
+opencode-remote --proxy http://192.168.1.100:7890
+```
+
+### Via Environment Variables
+
+Set one of these environment variables:
+
+```bash
+# For HTTPS requests (recommended)
+export HTTPS_PROXY=http://192.168.1.100:7890
+
+# For HTTP requests
+export HTTP_PROXY=http://192.168.1.100:7890
+
+# Fallback for all requests
+export ALL_PROXY=http://192.168.1.100:7890
+```
+
+You can also add these to your `.env` file:
+
+```bash
+HTTPS_PROXY=http://192.168.1.100:7890
+```
+
+### Proxy Authentication
+
+For proxies requiring authentication:
+
+```bash
+opencode-remote --proxy http://username:password@192.168.1.100:7890
+```
+
 ## Usage
 
 ```bash

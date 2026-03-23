@@ -3,14 +3,20 @@
 
 import { existsSync, writeFileSync, readFileSync, mkdirSync } from 'fs'
 import { homedir } from 'os'
-import { join } from 'path'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import { startBot } from './telegram/bot.js'
 import { startFeishuBot } from './feishu/bot.js'
+import { setGlobalProxy } from './opencode/client.js'
 import type { Config } from './core/types.js'
 
 const CONFIG_DIR = join(homedir(), '.opencode-remote')
 const CONFIG_FILE = join(CONFIG_DIR, '.env')
-const VERSION = '0.4.0'
+
+// Read version from package.json to avoid hardcoding
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'))
+const VERSION = packageJson.version
 
 function printBanner() {
   console.log(`
@@ -35,6 +41,12 @@ Commands:
 
 Options:
   -v, --version      Show version number
+  --proxy <url>      Use HTTP/HTTPS proxy for all requests
+                     (e.g., --proxy http://192.168.1.100:7890)
+
+Proxy Configuration:
+  You can also set proxy via environment variables:
+    HTTP_PROXY, HTTPS_PROXY, ALL_PROXY
 
 Examples:
   opencode-remote              # Start all bots
@@ -43,6 +55,7 @@ Examples:
   opencode-remote feishu       # Start Feishu only
   opencode-remote config       # Interactive channel selection
   opencode-remote --version    # Show version
+  opencode-remote --proxy http://192.168.1.100:7890  # With proxy
 `)
 }
 
@@ -570,7 +583,35 @@ async function runFeishuOnly() {
 
 // Main CLI
 const args = process.argv.slice(2)
-const command = args[0] || 'start'
+
+// Parse global options
+let proxyUrl: string | null = null
+let command = 'start'
+
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i]
+
+  if (arg === '--proxy') {
+    proxyUrl = args[++i]
+    if (!proxyUrl) {
+      console.error('Error: --proxy requires a URL argument')
+      process.exit(1)
+    }
+  } else if (arg.startsWith('--proxy=')) {
+    proxyUrl = arg.slice('--proxy='.length)
+  } else if (arg === '--version' || arg === '-v') {
+    command = 'version'
+  } else if (arg === '--help' || arg === '-h') {
+    command = 'help'
+  } else if (!arg.startsWith('-') && command === 'start') {
+    command = arg
+  }
+}
+
+// Set up proxy if specified
+if (proxyUrl) {
+  setGlobalProxy(proxyUrl)
+}
 
 switch (command) {
   case 'start':

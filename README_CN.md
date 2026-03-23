@@ -130,6 +130,45 @@ opencode-remote
 
 搞定！现在你可以通过 Telegram 或飞书机器人远程控制 OpenCode 了。
 
+## 代理配置
+
+如果你需要通过代理访问 OpenAI API（例如在受限网络环境中），可以配置代理：
+
+### 通过 CLI 参数
+
+```bash
+opencode-remote --proxy http://192.168.1.100:7890
+```
+
+### 通过环境变量
+
+设置以下环境变量之一：
+
+```bash
+# 用于 HTTPS 请求（推荐）
+export HTTPS_PROXY=http://192.168.1.100:7890
+
+# 用于 HTTP 请求
+export HTTP_PROXY=http://192.168.1.100:7890
+
+# 所有请求的回退选项
+export ALL_PROXY=http://192.168.1.100:7890
+```
+
+你也可以添加到 `.env` 文件中：
+
+```bash
+HTTPS_PROXY=http://192.168.1.100:7890
+```
+
+### 代理认证
+
+对于需要认证的代理：
+
+```bash
+opencode-remote --proxy http://用户名:密码@192.168.1.100:7890
+```
+
 ## 命令
 
 ```bash
