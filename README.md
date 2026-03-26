@@ -1,20 +1,20 @@
 <div align="center">
 
-<h1>🚀 推荐：使用 im-hub</h1>
+<h1>🚀 Recommended: Use im-hub</h1>
 
-**[im-hub](https://www.npmjs.com/package/im-hub)** 是推荐的新方案。
+**[im-hub](https://www.npmjs.com/package/im-hub)** is the recommended new solution.
 
 ---
 
 ## ⚠️ DEPRECATED
 
-本包（opencode-remote-control）已停止维护。
+This package (opencode-remote-control) is no longer maintained.
 
 </div>
 
 ---
 
-### 为什么 im-hub 更好
+### Why im-hub is Better
 
 | Feature | opencode-remote-control | im-hub |
 |---------|------------------------|--------|

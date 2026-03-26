@@ -1,6 +1,6 @@
 {
   "name": "opencode-remote-control",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Control OpenCode from anywhere via Telegram, Feishu, or WeChat - DEPRECATED: Please use im-hub instead",
   "type": "module",
   "bin": {
