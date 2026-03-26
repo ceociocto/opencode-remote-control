@@ -33,9 +33,11 @@ npm uninstall -g opencode-remote-control
 # Install im-hub
 npm install -g im-hub
 
-# Initialize
-im-hub init
+# Configure channels
+im-hub config
 ```
+
+For detailed setup instructions, see [im-hub README](https://github.com/ceociocto/im-hub).
 
 ---
 

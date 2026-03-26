@@ -33,9 +33,11 @@ npm uninstall -g opencode-remote-control
 # 安装 im-hub
 npm install -g im-hub
 
-# 初始化
-im-hub init
+# 配置频道
+im-hub config
 ```
+
+详细配置说明请参考 [im-hub README](https://github.com/ceociocto/im-hub)。
 
 ---
 
