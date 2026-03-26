@@ -1,16 +1,18 @@
 <div align="center">
 
-# ⚠️ 已停止维护
+<h1>🚀 推荐：使用 im-hub</h1>
 
-**本包已不再维护。**
+**[im-hub](https://www.npmjs.com/package/im-hub)** 是推荐的新方案。
+
+---
+
+## ⚠️ 已停止维护
+
+本包（opencode-remote-control）已停止维护。
 
 </div>
 
 ---
-
-## 📢 请使用 im-hub 替代
-
-**[im-hub](https://www.npmjs.com/package/im-hub)** 是推荐的替代方案。
 
 ### 为什么 im-hub 更好
 

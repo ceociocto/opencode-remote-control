@@ -1,18 +1,20 @@
 <div align="center">
 
-# ⚠️ DEPRECATED
+<h1>🚀 推荐：使用 im-hub</h1>
 
-**This package is no longer maintained.**
+**[im-hub](https://www.npmjs.com/package/im-hub)** 是推荐的新方案。
+
+---
+
+## ⚠️ DEPRECATED
+
+本包（opencode-remote-control）已停止维护。
 
 </div>
 
 ---
 
-## 📢 Use im-hub Instead
-
-**[im-hub](https://www.npmjs.com/package/im-hub)** is the recommended successor.
-
-### Why im-hub is Better
+### 为什么 im-hub 更好
 
 | Feature | opencode-remote-control | im-hub |
 |---------|------------------------|--------|
@@ -25,7 +27,7 @@
 ### Quick Migration
 
 ```bash
-# Uninstall the old package
+# Uninstall old package
 npm uninstall -g opencode-remote-control
 
 # Install im-hub
