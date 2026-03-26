@@ -1,7 +1,7 @@
 {
   "name": "opencode-remote-control",
-  "version": "0.7.1",
-  "description": "Control OpenCode from anywhere via Telegram, Feishu, or WeChat",
+  "version": "0.8.0",
+  "description": "Control OpenCode from anywhere via Telegram, Feishu, or WeChat - DEPRECATED: Please use im-hub instead",
   "type": "module",
   "bin": {
     "opencode-remote": "./dist/cli.js"

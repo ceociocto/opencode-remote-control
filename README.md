@@ -1,11 +1,74 @@
-# OpenCode Remote Control
+<div align="center">
 
-> **Lightning-fast AI coding assistant powered by OpenCode — no Claude Code subscription required!**
+# ⚠️ IMPORTANT: DEPRECATION NOTICE
+
+**This package is no longer recommended for use.**
+
+</div>
+
+---
+
+## 📢 We've Moved to a Better Solution
+
+**Please use [im-hub](https://www.npmjs.com/package/im-hub) instead.**
+
+`im-hub` is the successor to `opencode-remote-control` with significant improvements:
+
+### ✨ Why im-hub is Better
+
+| Feature | opencode-remote-control | im-hub |
+|---------|------------------------|--------|
+| **Universal Support** | Only OpenCode | **OpenCode, Claude Code, and more** |
+| **Multi-Platform** | Telegram, Feishu, WeChat | **10+ platforms** (Telegram, WhatsApp, Discord, Slack, iMessage, Signal, etc.) |
+| **Architecture** | Monolithic | **Plugin-based & extensible** |
+| **Agent Integration** | Limited | **Full AI agent ecosystem** |
+| **Active Development** | ❌ Deprecated | ✅ Actively maintained |
+
+### 🚀 Key Improvements in im-hub
+
+- **🎯 Cross-Tool Integration**: Seamlessly switch between OpenCode, Claude Code, and other AI coding assistants
+- **🌐 Multi-Messenger Support**: Connect to 10+ platforms from a single gateway
+- **🔌 Plugin System**: Extensible architecture for custom integrations
+- **🤖 Agent Ecosystem**: Built-in support for multi-agent workflows and automation
+- **📱 Mobile-Friendly**: Native app experience on mobile platforms
+- **🔒 Enhanced Security**: Better isolation and permission management
+
+### 📦 Quick Migration
+
+```bash
+# Uninstall the old package
+npm uninstall -g opencode-remote-control
+
+# Install im-hub
+npm install -g im-hub
+
+# Initialize im-hub
+im-hub init
+```
+
+For detailed migration guide, visit [im-hub documentation](https://github.com/ceociocto/im-hub).
+
+---
+
+<div align="center">
+
+**[⬇️ Install im-hub now](https://www.npmjs.com/package/im-hub)** | **[📖 Read im-hub docs](https://github.com/ceociocto/im-hub)**
+
+</div>
+
+---
+
+---
+
+# OpenCode Remote Control (Legacy)
+
+> **⚠️ This package is deprecated. Please use [im-hub](https://www.npmjs.com/package/im-hub) instead.**
+
+**Lightning-fast AI coding assistant powered by OpenCode — no Claude Code subscription required!**
 
 <p align="center">
   <a href="https://github.com/ceociocto/opencode-remote-control/actions/workflows/publish.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/ceociocto/opencode-remote-control/publish.yml?branch=main&style=for-the-badge" alt="CI status"></a>
   <a href="https://www.npmjs.com/package/opencode-remote-control"><img src="https://img.shields.io/npm/v/opencode-remote-control?style=for-the-badge" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/opencode-remote-control"><img src="https://img.shields.io/npm/dw/opencode-remote-control?style=for-the-badge&logo=npm&color=green"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
 </p>
 
@@ -14,18 +77,6 @@
 </p>
 
 ---
-
-## 🎉 What's New in v0.7.0
-
-**Official WeChat (微信) Channel Support!**
-
-Now you can control OpenCode through WeChat using the official API. Scan QR code to login, no tunnel required!
-
----
-
-Control OpenCode from anywhere via **Telegram**, **Feishu**, or **WeChat**.
-
-> **Disclaimer**: This project is not built by the OpenCode team and is not affiliated with OpenCode in any way. It is an independent community project that builds upon OpenCode.
 
 ## Requirements
 
@@ -132,7 +183,7 @@ Select "Feishu" and enter your App ID and App Secret.
 
 For detailed setup instructions, see [Feishu Setup Guide](./docs/FEISHU_SETUP_EN.md) or [飞书配置指南](./docs/FEISHU_SETUP.md).
 
-### WeChat Setup (New! 🎉)
+### WeChat Setup
 
 WeChat uses QR code login - no tunnel required!
 
