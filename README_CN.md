@@ -1,24 +1,74 @@
-# OpenCode Remote Control
+<div align="center">
 
-> **基于 OpenCode 的极速 AI 编程助手 — 无需订阅 Claude Code！**
+# ⚠️ 重要：已停止维护公告
+
+**本包已不再推荐使用。**
+
+</div>
+
+---
+
+## 📢 我们已迁移到更好的解决方案
+
+**请使用 [im-hub](https://www.npmjs.com/package/im-hub) 替代。**
+
+`im-hub` 是 `opencode-remote-control` 的继任者，有重大改进：
+
+### ✨ 为什么 im-hub 更好
+
+| 功能 | opencode-remote-control | im-hub |
+|---------|------------------------|--------|
+| **通用支持** | 仅 OpenCode | **OpenCode、Claude Code 等** |
+| **多平台** | Telegram、飞书、微信 | **10+ 平台**（Telegram、WhatsApp、Discord、Slack、iMessage、Signal 等） |
+| **架构** | 单体式 | **插件化 & 可扩展** |
+| **Agent 集成** | 有限 | **完整 AI agent 生态系统** |
+| **活跃开发** | ❌ 已废弃 | ✅ 积极维护 |
+
+### 🚀 im-hub 的关键改进
+
+- **🎯 跨工具集成**: 在 OpenCode、Claude Code 和其他 AI 编程助手之间无缝切换
+- **🌐 多消息平台支持**: 从单一网关连接到 10+ 平台
+- **🔌 插件系统**: 可扩展架构，支持自定义集成
+- **🤖 Agent 生态系统**: 内置支持多 agent 工作流和自动化
+- **📱 移动友好**: 在移动平台上提供原生应用体验
+- **🔒 增强安全**: 更好的隔离和权限管理
+
+### 📦 快速迁移
+
+```bash
+# 卸载旧包
+npm uninstall -g opencode-remote-control
+
+# 安装 im-hub
+npm install -g im-hub
+
+# 初始化 im-hub
+im-hub init
+```
+
+详细迁移指南请访问 [im-hub 文档](https://github.com/ceociocto/im-hub)。
+
+---
+
+<div align="center">
+
+**[⬇️ 立即安装 im-hub](https://www.npmjs.com/package/im-hub)** | **[📖 阅读 im-hub 文档](https://github.com/ceociocto/im-hub)**
+
+</div>
+
+---
+
+---
+
+# OpenCode Remote Control (已废弃)
+
+> **⚠️ 本包已废弃，请使用 [im-hub](https://www.npmjs.com/package/im-hub) 替代。**
+
+**基于 OpenCode 的极速 AI 编程助手 — 无需订阅 Claude Code！**
 
 [English](./README.md)
 
 ---
-
-## 🎉 v0.7.0 重要更新
-
-**微信（WeChat）渠道支持！**
-
-现在你可以通过微信控制 OpenCode。扫码登录，无需内网穿透！
-
-> ⚠️ **重要提示**：请确保微信已更新到 **最新版本**，否则无法使用机器人功能。
-
----
-
-通过 **Telegram**、**飞书** 或 **微信** 远程控制 OpenCode。
-
-> **免责声明**：本项目并非由 OpenCode 团队开发，与 OpenCode 无任何关联。这是一个基于 OpenCode 构建的独立社区项目。
 
 ## 系统要求
 
@@ -97,8 +147,8 @@ Token 会保存到 `~/.opencode-remote/.env`
 
 1. 进入「应用能力」→「机器人」
 2. 开启「启用机器人」
-3. 启用「机器人可主动发送消息给用户」
-4. 启用「用户可与机器人进行单聊」
+3. 开启「机器人可主动发送消息给用户」
+4. 开启「用户可与机器人进行单聊」
 
 #### 步骤 4：配置事件订阅（关键！）
 
@@ -127,7 +177,7 @@ opencode-remote config
 
 详细配置说明请参考 [飞书配置指南](./docs/FEISHU_SETUP.md)。
 
-### 微信配置（新功能！🎉）
+### 微信配置
 
 微信使用官方渠道，通过扫码登录，无需内网穿透！
 
